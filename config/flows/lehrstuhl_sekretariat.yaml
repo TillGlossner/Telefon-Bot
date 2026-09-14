@@ -18,7 +18,7 @@ settings:
   timeout_s: 6
   barge_in: true
   min_confidence: 0.45
-  escalation_node: weiterleitung
+  escalation_node: weiterleitung_pruefen
 
 slots:
   anliegen: { type: choice, description: Hauptanliegen des Anrufs }
@@ -35,7 +35,7 @@ global_commands:
   - name: mensch
     phrases: ["mitarbeiter", "mitarbeiterin", "mensch", "echten menschen", "sekretariat", "jemanden sprechen"]
     action: goto
-    target: weiterleitung
+    target: weiterleitung_pruefen
     dtmf: "0"
   - name: wiederholen
     phrases: ["wiederholen", "nochmal", "noch mal", "wie bitte", "nicht verstanden"]
@@ -57,6 +57,22 @@ nodes:
       Ich bin ein Sprachassistent und nehme Ihr Anliegen auf.
       Sagen Sie jederzeit Mitarbeiter oder druecken Sie die Null,
       um mit einer Person verbunden zu werden.
+    next: sprechzeit_pruefen
+
+  # Ausserhalb der Sprechzeit ist niemand da, zu dem weitergeleitet werden
+  # koennte. Der Baum sagt das offen und nimmt das Anliegen trotzdem auf.
+  sprechzeit_pruefen:
+    type: branch
+    cases:
+      - when: [{ slot: innerhalb_sprechzeit, op: eq, value: "nein" }]
+        next: hinweis_geschlossen
+    next: hauptmenue
+
+  hinweis_geschlossen:
+    type: say
+    text: >
+      Das Sekretariat ist im Moment nicht besetzt, wieder erreichbar
+      {naechste_sprechzeit}. Ich nehme Ihr Anliegen trotzdem auf.
     next: hauptmenue
 
   hauptmenue:
@@ -128,7 +144,7 @@ nodes:
       name: "{name}"
     assign: vorgangsnummer
     next: termin_ende
-    on_error: weiterleitung
+    on_error: weiterleitung_pruefen
 
   termin_ende:
     type: hangup
@@ -163,7 +179,7 @@ nodes:
     type: confirm
     text: Ist Ihr Anliegen dringend, also noch heute?
     slot: dringend
-    on_yes: weiterleitung
+    on_yes: weiterleitung_pruefen
     on_no: rueckruf_anlegen
 
   rueckruf_anlegen:
@@ -175,7 +191,7 @@ nodes:
       nummer: "{rueckrufnummer}"
     assign: vorgangsnummer
     next: rueckruf_ende
-    on_error: weiterleitung
+    on_error: weiterleitung_pruefen
 
   rueckruf_ende:
     type: hangup
@@ -244,7 +260,7 @@ nodes:
       name: "{name}"
     assign: vorgangsnummer
     next: pruefung_ende
-    on_error: weiterleitung
+    on_error: weiterleitung_pruefen
 
   pruefung_ende:
     type: hangup
@@ -263,10 +279,25 @@ nodes:
       und von vierzehn bis sechzehn Uhr besetzt, freitags von neun bis zwoelf Uhr.
     next: hauptmenue
 
+  weiterleitung_pruefen:
+    type: branch
+    cases:
+      - when: [{ slot: innerhalb_sprechzeit, op: eq, value: "nein" }]
+        next: weiterleitung_nicht_moeglich
+    next: weiterleitung
+
   weiterleitung:
     type: transfer
     text: Einen Moment bitte, ich verbinde Sie mit dem Sekretariat.
-    target: "PJSIP/sekretariat"
+    # Nebenstelle der zentralen Anlage -- Ziel im Dialplan hinterlegt.
+    target: "PJSIP/sekretariat@uni-pbx"
+
+  weiterleitung_nicht_moeglich:
+    type: say
+    text: >
+      Das Sekretariat ist gerade nicht besetzt, wieder erreichbar
+      {naechste_sprechzeit}. Ich notiere Ihnen einen Rueckruf.
+    next: rueckruf_name
 
   verabschiedung:
     type: hangup

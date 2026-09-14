@@ -292,8 +292,11 @@ class FlowEngine:
         return target
 
     def _branch_target(self, node: Node) -> str:
+        # Bedingungen duerfen auch Kontextvariablen pruefen (z.B. innerhalb_sprechzeit);
+        # gleichnamige Slots haben Vorrang.
+        werte = self.context.as_template_context()
         for case in node.cases:
-            if case.matches(self.context.slots):
+            if case.matches(werte):
                 return case.next
         if node.next is None:
             raise EngineError(f"branch-Knoten '{node.id}': kein Fall trifft zu und kein 'next'")

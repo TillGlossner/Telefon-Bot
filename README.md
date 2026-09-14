@@ -19,7 +19,7 @@ Ohne Installation, ohne Modelle, ohne Telefonanlage — nur Python 3.11 und PyYA
 ```bash
 make pruefen     # Entscheidungsbäume statisch prüfen
 make spielen     # Dialog im Terminal führen
-make test        # 149 Tests, ca. 12 Sekunden
+make test        # 163 Tests, ca. 12 Sekunden
 make graph       # Mermaid-Diagramme der Bäume
 ```
 
@@ -72,7 +72,7 @@ src/telefonbot/
   control/      Status, Kennzahlen, Weiterleitungsziel für den Dialplan
 config/flows/   Die Entscheidungsbäume
 deploy/         Asterisk-Dialplan, systemd-Unit, Dockerfile
-tests/          149 Tests, reine Standardbibliothek
+tests/          163 Tests, reine Standardbibliothek
 ```
 
 Der Kern kommt ohne Fremdpakete aus (PyYAML nur zum Laden der Bäume). Die
@@ -83,9 +83,14 @@ das hält Installation und Betrieb auf einer abgeschotteten VM einfach.
 
 **Fertig und getestet:** Entscheidungsbaum-Engine mit Nachfragen, Eskalation,
 globalen Kommandos und statischer Prüfung; deutsches Sprachverstehen;
-Gesprächsschleife mit Barge-in, Zeitgrenzen und Tasteneingabe; AudioSocket-
-Protokoll und -Server; Konfiguration, CLI, Simulator, Control-API; zwei
-Beispielbäume.
+Gesprächsschleife mit Barge-in, Zeitgrenzen und Tasteneingabe; Sprechzeiten-
+Logik (außerhalb der Sprechzeit wird ein Rückruf aufgenommen statt ins Leere
+verbunden); AudioSocket-Protokoll und -Server; Konfiguration, CLI, Simulator,
+Control-API; zwei Beispielbäume.
+
+**Ausgelegt auf:** Lehrstuhl-/Sekretariatsbetrieb, Asterisk als schlanker
+Vermittler an einer SIP-Nebenstelle der zentralen LMU-Anlage, Spracherkennung
+auf einer GPU-VM.
 
 **Geschrieben, aber nie gegen echte Hardware gelaufen:** die Adapter für
 faster-whisper und Piper (Pakete waren in der Entwicklungsumgebung nicht
@@ -100,7 +105,6 @@ AudioSocket-Client, nicht gegen Asterisk).
   (`flow.engine.Interpreter` ist die vorgesehene Einhängestelle)
 * Anbindung an ein konkretes Fachsystem — bisher legt der Bot Vorgänge als
   JSON-Dateien ab oder ruft einen konfigurierbaren Webhook auf
-* Öffnungszeiten-Logik (außerhalb der Sprechzeit anders reagieren)
 
 ## Lizenz
 

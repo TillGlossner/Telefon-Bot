@@ -226,7 +226,8 @@ class CliTest(unittest.TestCase):
 
     def test_beispielbaum_laedt_streng(self):
         flow = load_flow_file(FLOWS / "lehrstuhl_sekretariat.yaml")
-        self.assertEqual(flow.settings.escalation_node, "weiterleitung")
+        # Eskalation geht ueber die Sprechzeitpruefung, nicht direkt auf die Weiterleitung
+        self.assertEqual(flow.settings.escalation_node, "weiterleitung_pruefen")
         self.assertTrue(flow.slots["matrikelnummer"].sensitive)
 
 

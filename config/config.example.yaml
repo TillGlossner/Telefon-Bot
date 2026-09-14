@@ -15,8 +15,8 @@ telephony:
 asr:
   engine: whisper        # whisper | fake
   model: large-v3        # GPU: large-v3 oder distil-large-v3, reine CPU: medium/small
-  device: auto           # cuda | cpu | auto
-  compute_type: int8_float16   # GPU; auf CPU: int8
+  device: cuda           # cuda | cpu | auto
+  compute_type: float16  # GPU: float16 (int8_float16 spart Speicher); CPU: int8
   language: de
   beam_size: 5
   # Fachbegriffe verbessern die Erkennung von Eigennamen deutlich:
@@ -57,6 +57,21 @@ actions:
   ticket_dir: var/vorgaenge
   webhook_url: ""        # z.B. http://127.0.0.1:8000/api/vorgaenge
   webhook_token: ""      # besser: TELEFONBOT_ACTIONS_WEBHOOK_TOKEN
+
+# Sprechzeiten steuern die Kontextvariable "innerhalb_sprechzeit".
+# Ausserhalb dieser Zeiten leitet der Beispielbaum nicht weiter, sondern
+# nimmt einen Rueckruf auf -- weiterleiten ins Leere aergert Anrufer am meisten.
+# Leer lassen = durchgehend erreichbar.
+sprechzeiten:
+  tage:
+    montag: ["09:00-12:00", "14:00-16:00"]
+    dienstag: ["09:00-12:00", "14:00-16:00"]
+    mittwoch: ["09:00-12:00", "14:00-16:00"]
+    donnerstag: ["09:00-12:00", "14:00-16:00"]
+    freitag: ["09:00-12:00"]
+  geschlossen_an:
+    - "2026-12-24"
+    - "2026-12-31"
 
 control:
   enabled: true

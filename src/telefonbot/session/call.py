@@ -89,6 +89,7 @@ class CallSession:
         actions: ActionRegistry | None = None,
         config: CallConfig | None = None,
         transcript_writer: TranscriptWriter | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> None:
         self.flow = flow
         self.transport = transport
@@ -99,7 +100,12 @@ class CallSession:
         self.transcript_writer = transcript_writer
 
         info = transport.info
-        self.context = CallContext(call_id=info.call_id, caller=info.caller, called=info.called)
+        self.context = CallContext(
+            call_id=info.call_id,
+            caller=info.caller,
+            called=info.called,
+            meta=dict(meta or {}),
+        )
         self.engine = FlowEngine(flow, interpreter or RuleInterpreter(), context=self.context)
         self.transcript = Transcript(
             call_id=info.call_id,

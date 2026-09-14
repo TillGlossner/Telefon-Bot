@@ -31,8 +31,8 @@ class TelephonyConfig:
 class AsrConfig:
     engine: str = "whisper"  # "whisper" | "fake"
     model: str = "large-v3"
-    device: str = "auto"
-    compute_type: str = "int8_float16"
+    device: str = "auto"       # "cuda" auf GPU-Maschinen, "cpu" sonst
+    compute_type: str = "float16"
     language: str = "de"
     beam_size: int = 5
     initial_prompt: str = ""
@@ -92,6 +92,15 @@ class ControlConfig:
 
 
 @dataclass
+class OfficeHoursConfig:
+    """Sprechzeiten je Wochentag; leer bedeutet 'durchgehend erreichbar'."""
+
+    tage: dict[str, list[str]] = field(default_factory=dict)
+    geschlossen_an: list[str] = field(default_factory=list)
+    """Einzelne Tage (YYYY-MM-DD), an denen niemand da ist -- Feiertage, Schliesszeiten."""
+
+
+@dataclass
 class AppConfig:
     """Gesamtkonfiguration des Bots."""
 
@@ -105,6 +114,7 @@ class AppConfig:
     transcripts: TranscriptConfig = field(default_factory=TranscriptConfig)
     actions: ActionsConfig = field(default_factory=ActionsConfig)
     control: ControlConfig = field(default_factory=ControlConfig)
+    sprechzeiten: OfficeHoursConfig = field(default_factory=OfficeHoursConfig)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

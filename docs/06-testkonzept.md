@@ -2,7 +2,7 @@
 
 ## Was automatisch getestet ist
 
-`make test` — 149 Tests, Laufzeit rund 12 Sekunden, ohne Installation von
+`make test` — 163 Tests, Laufzeit rund 12 Sekunden, ohne Installation von
 Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 
 | Bereich | Umfang |
@@ -15,6 +15,7 @@ Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 | Audio | Resampling, Pegel, WAV, Übersteuerung, VAD-Einpegelung, Segmentierung |
 | Telefonie | AudioSocket-Rahmen (auch byteweise zerstückelt), echter TCP-Durchlauf gegen den Server, Überlastabweisung |
 | Gespräch | ganze Telefonate gegen Fake-Telefonie: Sprache, Tasten, Barge-in, Schweigen, Auflegen, Aktionsfehler |
+| Sprechzeiten | offen/geschlossen inkl. Mittagspause und Feiertagen, nächste Öffnung, fehlerhafte Angaben; beide Pfade des Beispielbaums (verbinden vs. Rückruf aufnehmen) |
 | Werkzeuge | Konfiguration (YAML + Umgebung), Simulator, Diagramm, Control-API, CLI |
 
 Die Gesprächstests laufen ohne Echtzeit: Der Fake-Transport taktet die

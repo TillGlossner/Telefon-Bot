@@ -52,6 +52,7 @@ def simulate(
     *,
     today: dt.date | None = None,
     action_results: dict[str, Any] | None = None,
+    meta: dict[str, Any] | None = None,
     max_steps: int = 50,
 ) -> SimulationResult:
     """Spielt einen Baum mit vorgegebenen oder interaktiven Eingaben durch.
@@ -60,7 +61,11 @@ def simulate(
     den zuletzt gesagten Ansagen die naechste Antwort liefert (interaktiv).
     Eine Tasteneingabe wird als ``"#1"`` geschrieben.
     """
-    engine = FlowEngine(flow, RuleInterpreter(today=today), context=CallContext(call_id="sim"))
+    engine = FlowEngine(
+        flow,
+        RuleInterpreter(today=today),
+        context=CallContext(call_id="sim", meta=dict(meta or {})),
+    )
     results = action_results or {}
     queue = list(inputs) if isinstance(inputs, list) else None
     result = SimulationResult()

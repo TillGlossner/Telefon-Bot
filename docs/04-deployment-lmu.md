@@ -2,24 +2,44 @@
 
 ## Aufbau
 
+Ausgangslage hier: Die Einrichtung bekommt **keine eigene Amtsleitung, sondern
+eine Nebenstelle (Durchwahl) der zentralen Anlage**. Asterisk meldet sich mit
+dieser Durchwahl an und dient nur als schlanker Vermittler vor dem Bot.
+
 ```
-Telefonanlage der LMU ──SIP──> Asterisk (VM) ──AudioSocket──> Telefonbot (VM/Container)
-                                    │                              │
-                                    └── Weiterleitung ans Sekretariat
-                                                                   └── Ticketsystem (optional)
+Zentrale Anlage der LMU ──SIP (Nebenstelle 12345)──> Asterisk (VM)
+                                                          │ AudioSocket (localhost:8090)
+                                                          ▼
+                                                     Telefonbot
+                                                          │
+             Weiterleitung als neuer Anruf über die Anlage ┘ ──> Sekretariat (67890)
 ```
 
-Asterisk und Bot können auf derselben Maschine laufen; der AudioSocket-Port ist
-dann auf `127.0.0.1` gebunden und braucht keine Firewallregel.
+Asterisk und Bot laufen auf derselben Maschine; der AudioSocket-Port ist auf
+`127.0.0.1` gebunden und braucht keine Firewallregel.
+
+Konsequenzen dieser Variante:
+
+* Die Weiterleitung geht **als neuer Anruf** über die zentrale Anlage
+  (`Dial(PJSIP/67890@uni-pbx)`) und belegt dabei einen zweiten Kanal. Wo die
+  Anlage SIP-REFER zulässt, ist `Transfer()` sparsamer — vorher testen.
+* Gleichzeitige Gespräche sind durch die Nebenstelle begrenzt. Für mehr als
+  ein paralleles Gespräch muss die Anlage mehrere Kanäle auf der Durchwahl
+  erlauben; das ist beim Telefonie-Team zu erfragen.
+* Die Rufnummer des Anrufers kommt nur, wenn die Anlage sie durchreicht.
 
 ## Voraussetzungen klären (vor der Technik)
 
 Diese Punkte sind **keine Programmieraufgaben** und brauchen erfahrungsgemäß am
 längsten:
 
-1. **Rufnummer und SIP-Anbindung** — über den IT-Servicedesk der LMU bzw. das
-   Telefonie-Team der Einrichtung. Benötigt: SIP-Trunk oder Nebenstelle,
-   Zugangsdaten, erlaubte Codecs (meist G.711 a-law), erreichbare Adressen.
+1. **Nebenstelle und Zugangsdaten** — über den IT-Servicedesk bzw. das
+   Telefonie-Team. Konkret zu erfragen:
+   * Durchwahl und SIP-Zugangsdaten (Benutzer, Passwort, Registrar-Adresse)
+   * erlaubte Codecs (meist G.711 a-law) und DTMF-Verfahren (RFC 4733?)
+   * wie viele gleichzeitige Gespräche die Durchwahl erlaubt
+   * ob SIP-REFER (Weiterverbinden) zugelassen ist
+   * ob die Rufnummer des Anrufers durchgereicht wird
 2. **VM oder Hardware** — siehe Hardware-Tabelle in `docs/02`. GPU-Kapazität
    gibt es an der LMU unter anderem über das LRZ.
 3. **Datenschutz** — Verfahrensverzeichnis, Abstimmung mit dem Datenschutz-
@@ -91,6 +111,9 @@ Wichtig:
 * `res_audiosocket.so` und `app_audiosocket.so` müssen geladen sein
   (`module show like audiosocket`).
 * `func_curl.so` wird für die Weiterleitungsabfrage gebraucht.
+* Das Weiterleitungsziel aus dem Baum (`PJSIP/sekretariat@uni-pbx`) wird im
+  Dialplan auf die echte Durchwahl umgesetzt — Variable `SEKRETARIAT` in
+  `extensions.conf`. So steht keine Durchwahl im Dialogbaum.
 
 **Offener Punkt DTMF:** Ob Tastendrücke als AudioSocket-Rahmen ankommen, hängt
 von der Asterisk-Version ab. Testen mit:

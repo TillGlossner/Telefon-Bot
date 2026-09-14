@@ -13,6 +13,21 @@ from telefonbot.flow.model import ExpectKind, Flow, NodeKind
 from telefonbot.flow.render import placeholders
 
 
+KONTEXTVARIABLEN = {
+    "caller",
+    "called",
+    "last_error",
+    "escalation_reason",
+    "global_command",
+    "jetzt_datum",
+    "jetzt_uhrzeit",
+    "wochentag",
+    "innerhalb_sprechzeit",
+    "naechste_sprechzeit",
+}
+"""Vom Dienst gesetzte Variablen, die Baeume wie Slots verwenden duerfen."""
+
+
 @dataclass(frozen=True)
 class Issue:
     """Ein Befund der Validierung."""
@@ -162,7 +177,7 @@ def _check_node_shape(flow: Flow) -> list[Issue]:
                 )
             for case in node.cases:
                 for cond in case.when:
-                    if flow.slots and cond.slot not in flow.slots:
+                    if flow.slots and cond.slot not in flow.slots and cond.slot not in KONTEXTVARIABLEN:
                         issues.append(
                             Issue(
                                 "warning",
@@ -185,7 +200,7 @@ def _check_node_shape(flow: Flow) -> list[Issue]:
 
 
 def _check_placeholders(flow: Flow) -> list[Issue]:
-    known = set(flow.slots) | {"caller", "called", "last_error", "escalation_reason", "global_command"}
+    known = set(flow.slots) | KONTEXTVARIABLEN
     issues: list[Issue] = []
     for node in flow.nodes.values():
         used: set[str] = set()

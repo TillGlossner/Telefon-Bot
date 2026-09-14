@@ -21,6 +21,11 @@ Diese Werte sind Richtwerte aus der Praxis, **nicht auf LMU-Hardware gemessen**.
 Vor der Modellwahl `scripts/benchmark_asr.py` mit echten Telefonaufnahmen laufen
 lassen.
 
+Da für dieses Projekt eine **GPU-VM** vorgesehen ist, steht die
+Beispielkonfiguration auf `large-v3` mit `device: cuda` und
+`compute_type: float16`. Reicht der GPU-Speicher nicht, ist
+`int8_float16` der nächste Schritt, danach `distil-large-v3`.
+
 *Alternativen:* NVIDIA Parakeet/Canary (schnell, deutsches Telefonaudio schwächer
 abgedeckt), WhisperX (Wortzeitstempel, für uns nicht nötig), Cloud-Dienste
 (scheiden aus Datenschutzgründen aus).

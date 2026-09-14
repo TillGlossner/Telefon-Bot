@@ -9,6 +9,7 @@ statt beim ersten Anruf abzustuerzen.
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import logging
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from telefonbot.session.actions import (
     noop_action,
 )
 from telefonbot.session.call import CallConfig, CallSession
+from telefonbot.session.sprechzeiten import Sprechzeiten
 from telefonbot.session.transcript import TranscriptWriter
 from telefonbot.telephony.audiosocket import AudioSocketServer, AudioSocketTransport
 from telefonbot.tts.base import TTS
@@ -127,6 +129,9 @@ class BotService:
         self.asr = build_asr(config)
         self.tts = build_tts(config)
         self.actions = build_actions(config)
+        self.sprechzeiten = Sprechzeiten.aus_konfiguration(
+            config.sprechzeiten.tage, config.sprechzeiten.geschlossen_an
+        )
         self.call_config = build_call_config(config)
         self.transcripts = TranscriptWriter(
             config.transcripts.directory, enabled=config.transcripts.enabled
@@ -172,6 +177,7 @@ class BotService:
             actions=self.actions,
             config=self.call_config,
             transcript_writer=self.transcripts,
+            meta=self.sprechzeiten.kontext(dt.datetime.now()),
         )
         result = None
         try:

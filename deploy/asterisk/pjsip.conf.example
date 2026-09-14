@@ -1,38 +1,78 @@
-; Ausschnitt: SIP-Anbindung fuer den Bot-Betrieb.
-; Die konkreten Werte kommt vom Telefonie-Team der LMU (IT-Servicedesk).
+; SIP-Anbindung fuer den Betrieb als NEBENSTELLE an der zentralen Anlage.
+;
+; Ausgangslage: Die Einrichtung bekommt keine eigene Amtsleitung, sondern eine
+; Nebenstelle (Durchwahl) von der zentralen Telefonanlage der LMU. Asterisk
+; meldet sich mit dieser Nebenstelle an und uebergibt eingehende Anrufe an den
+; Bot; Weiterleitungen gehen ueber dieselbe Anlage wieder hinaus.
+;
+; Die konkreten Werte (Server, Durchwahl, Passwort, Codecs) kommen vom
+; Telefonie-Team ueber den IT-Servicedesk.
+
+[global]
+type=global
+user_agent=Telefonbot
 
 [transport-udp]
 type=transport
 protocol=udp
 bind=0.0.0.0:5060
+; Wenn Asterisk hinter NAT steht, zusaetzlich:
+; local_net=10.0.0.0/8
+; external_media_address=<oeffentliche IP>
+; external_signaling_address=<oeffentliche IP>
 
-; --- Amtsleitung / Nebenstellenanlage der Einrichtung -----------------------
-[uni-trunk]
-type=endpoint
-context=telefonbot          ; eingehende Anrufe landen beim Bot
-disallow=all
-allow=alaw                  ; G.711 a-law ist in Deutschland ueblich
-direct_media=no             ; Audio muss ueber Asterisk laufen, sonst kein AudioSocket
-dtmf_mode=rfc4733
-aors=uni-trunk
+; --- Anmeldung der Nebenstelle an der zentralen Anlage ---------------------
+[uni-pbx]
+type=registration
+transport=transport-udp
+outbound_auth=uni-pbx-auth
+server_uri=sip:pbx.example.lmu.de
+client_uri=sip:12345@pbx.example.lmu.de     ; 12345 = eigene Durchwahl
+retry_interval=30
+forbidden_retry_interval=300
+expiration=300
 
-[uni-trunk]
+[uni-pbx-auth]
+type=auth
+auth_type=userpass
+username=12345
+; Passwort nicht hier, sondern ueber eine geschuetzte Include-Datei:
+;   #include /etc/asterisk/pjsip_secrets.conf
+password=GEHEIM
+
+[uni-pbx]
 type=aor
 contact=sip:pbx.example.lmu.de:5060
+qualify_frequency=60          ; erkennt Ausfaelle der Anlage
 
-[uni-trunk]
-type=identify
-endpoint=uni-trunk
-match=pbx.example.lmu.de
-
-; --- Ziel fuer Weiterleitungen an Menschen ---------------------------------
-[sekretariat]
+[uni-pbx]
 type=endpoint
-context=von-nebenstellen
+context=telefonbot            ; eingehende Anrufe landen beim Bot
+transport=transport-udp
 disallow=all
-allow=alaw
-aors=sekretariat
+allow=alaw                    ; G.711 a-law ist in Deutschland ueblich
+allow=ulaw
+direct_media=no               ; Pflicht: sonst laeuft das Audio an Asterisk vorbei
+                              ; und AudioSocket bekommt nichts zu hoeren
+dtmf_mode=rfc4733
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
+outbound_auth=uni-pbx-auth
+aors=uni-pbx
+from_user=12345
+callerid=Telefonbot <12345>
 
-[sekretariat]
-type=aor
-contact=sip:sekretariat@10.0.0.20
+[uni-pbx]
+type=identify
+endpoint=uni-pbx
+match=pbx.example.lmu.de      ; nur die Anlage darf Anrufe einliefern
+
+; --- Weiterleitungsziele ---------------------------------------------------
+; Als Nebenstelle hat der Bot keine eigenen Endgeraete: Weiterleitungen gehen
+; als neuer Anruf ueber die zentrale Anlage zur Durchwahl des Sekretariats.
+; Im Dialplan entsprechend:  Dial(PJSIP/67890@uni-pbx,30,m)
+;
+; Alternative, wenn die Anlage SIP-REFER erlaubt: Transfer(PJSIP/67890@uni-pbx)
+; leitet das Gespraech ab und gibt die Leitung frei -- spart einen Kanal,
+; muss aber von der zentralen Anlage zugelassen sein. Vorher testen.

@@ -89,6 +89,41 @@ Schutz gegen halb verstandene Nummern.
 Nicht gefüllte Platzhalter werden zu leerem Text — die Prüfung warnt vorher,
 wenn ein Platzhalter zu keinem Slot gehört.
 
+## Kontextvariablen
+
+Neben den Slots setzt der Dienst selbst einige Variablen. Sie lassen sich in
+Ansagen (`{naechste_sprechzeit}`) und in `branch`-Bedingungen verwenden:
+
+| Variable | Wert |
+|---|---|
+| `innerhalb_sprechzeit` | `"ja"` / `"nein"` nach den Sprechzeiten in `config.yaml` |
+| `naechste_sprechzeit` | „morgen um 9 Uhr“, „am Dienstag um 9 Uhr“ |
+| `jetzt_datum`, `jetzt_uhrzeit`, `wochentag` | Zeitpunkt des Anrufs |
+| `caller`, `called` | Rufnummern, soweit die Anlage sie liefert |
+| `last_error` | Fehlermeldung der zuletzt gescheiterten Fachaktion |
+| `escalation_reason` | `no_match` oder `no_input` nach zu vielen Versuchen |
+
+So nutzt der Beispielbaum die Sprechzeit, statt ins Leere zu verbinden:
+
+```yaml
+  weiterleitung_pruefen:
+    type: branch
+    cases:
+      - when: [{ slot: innerhalb_sprechzeit, op: eq, value: "nein" }]
+        next: weiterleitung_nicht_moeglich
+    next: weiterleitung
+
+  weiterleitung_nicht_moeglich:
+    type: say
+    text: >
+      Das Sekretariat ist gerade nicht besetzt, wieder erreichbar
+      {naechste_sprechzeit}. Ich notiere Ihnen einen Rueckruf.
+    next: rueckruf_name
+```
+
+Sprechzeiten stehen in `config.yaml` unter `sprechzeiten`; ohne Konfiguration
+gilt der Betrieb als durchgehend erreichbar.
+
 ## Was die Prüfung findet
 
 | Code | Bedeutung |
