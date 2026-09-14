@@ -1,0 +1,64 @@
+# Beispielkonfiguration. Kopieren nach config/config.yaml und anpassen.
+# Jede Einstellung laesst sich per Umgebungsvariable ueberschreiben:
+#   TELEFONBOT_ASR_MODEL=medium  ->  asr.model
+# Geheimnisse (Tokens) gehoeren in die Umgebung, nicht in diese Datei.
+
+flow: config/flows/lehrstuhl_sekretariat.yaml
+log_level: INFO
+
+telephony:
+  host: 127.0.0.1        # Asterisk laeuft ueblicherweise auf demselben Host
+  port: 8090
+  max_concurrent_calls: 8
+  sample_rate: 8000
+
+asr:
+  engine: whisper        # whisper | fake
+  model: large-v3        # GPU: large-v3 oder distil-large-v3, reine CPU: medium/small
+  device: auto           # cuda | cpu | auto
+  compute_type: int8_float16   # GPU; auf CPU: int8
+  language: de
+  beam_size: 5
+  # Fachbegriffe verbessern die Erkennung von Eigennamen deutlich:
+  initial_prompt: >
+    Matrikelnummer, Pruefungsamt, Sprechstunde, Lehrstuhl, Seminar,
+    Vorlesung, Klausur, Attest, Ludwig-Maximilians-Universitaet
+  model_dir: models/whisper   # lokaler Modellordner (Rechner ohne Internetzugang)
+
+tts:
+  engine: piper          # piper | fake
+  voice_path: models/piper/de_DE-thorsten-high.onnx
+  length_scale: 1.05     # etwas langsamer sprechen -- am Telefon verstaendlicher
+  cache_dir: var/tts-cache
+  cache_enabled: true
+
+vad:
+  engine: energy         # energy | silero
+  model_path: models/silero_vad.onnx
+  margin_db: 12.0        # hoeher = unempfindlicher gegen Leitungsrauschen
+  start_speech_s: 0.12
+  end_silence_s: 0.8     # kuerzer = flotter, aber schneidet Denkpausen ab
+  max_utterance_s: 30.0
+
+session:
+  barge_in: true
+  greeting_delay_s: 0.3
+  max_turns: 40
+  dtmf_interdigit_s: 3.0
+  action_timeout_s: 8.0
+
+transcripts:
+  enabled: true
+  directory: var/transkripte
+  store_audio: false     # nur mit Rechtsgrundlage und Loeschfrist einschalten
+  retention_days: 30
+
+actions:
+  ticket_dir: var/vorgaenge
+  webhook_url: ""        # z.B. http://127.0.0.1:8000/api/vorgaenge
+  webhook_token: ""      # besser: TELEFONBOT_ACTIONS_WEBHOOK_TOKEN
+
+control:
+  enabled: true
+  host: 127.0.0.1        # ohne Authentisierung -- nicht nach aussen binden
+  port: 8091

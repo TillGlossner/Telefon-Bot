@@ -20,7 +20,6 @@ import asyncio
 import contextlib
 import logging
 import time
-from array import array
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -381,7 +380,3 @@ class CallSession:
                 await self._reader
         with contextlib.suppress(Exception):
             await self.transport.hangup(reason)
-
-
-def empty_samples() -> Samples:
-    return array("h")

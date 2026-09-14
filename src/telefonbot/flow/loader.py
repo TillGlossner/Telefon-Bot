@@ -120,7 +120,7 @@ def _node(node_id: str, body: Any) -> Node:
         no_input_text=_opt_str(body.get("no_input_text")),
         slot=_opt_str(body.get("slot")),
         expect=_expect(node_id, body.get("expect")),
-        transitions={str(k): str(v) for k, v in transitions.items()},
+        transitions={_key(k): str(v) for k, v in transitions.items()},
         cases=_cases(node_id, body.get("cases") or []),
         action=_opt_str(body.get("action")),
         args=dict(body.get("args") or {}),
@@ -165,17 +165,17 @@ def _expect(node_id: str, raw: Any) -> ExpectSpec | None:
 
     options_raw = raw.get("options") or {}
     if isinstance(options_raw, list):  # Kurzform: nur Werte, Synonym == Wert
-        options_raw = {str(v): [str(v)] for v in options_raw}
+        options_raw = {_key(v): [_key(v)] for v in options_raw}
     if not isinstance(options_raw, dict):
         raise FlowLoadError(f"Knoten '{node_id}': 'options' muss Mapping oder Liste sein")
     options = {
-        str(key): [str(s) for s in (syn if isinstance(syn, list) else [syn])]
+        _key(key): [str(s) for s in (syn if isinstance(syn, list) else [syn])]
         for key, syn in options_raw.items()
     }
     return ExpectSpec(
         kind=kind,
         options=options,
-        dtmf={str(k): str(v) for k, v in (raw.get("dtmf") or {}).items()},
+        dtmf={str(k): _key(v) for k, v in (raw.get("dtmf") or {}).items()},
         min_value=_opt_float(raw.get("min")),
         max_value=_opt_float(raw.get("max")),
         length=_opt_int(raw.get("length")),
@@ -267,6 +267,18 @@ def _settings(raw: Any) -> FlowSettings:
         min_confidence=float(raw.get("min_confidence", defaults.min_confidence)),
         escalation_node=_opt_str(raw.get("escalation_node")),
     )
+
+
+def _key(value: Any) -> str:
+    """Schluessel eines Uebergangs oder einer Option als Text.
+
+    YAML 1.1 liest ``yes``/``no``/``on``/``off`` als Wahrheitswerte -- ohne diese
+    Umsetzung wuerde aus ``transitions: {yes: ...}`` der Schluessel ``True``,
+    und der Baum liefe genau an der Ja/Nein-Frage ins Leere.
+    """
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return str(value)
 
 
 def _opt_str(value: Any) -> str | None:

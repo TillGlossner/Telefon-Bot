@@ -113,6 +113,28 @@ def _check_node_shape(flow: Flow) -> list[Issue]:
                                 node.id,
                             )
                         )
+            elif node.expect.kind is ExpectKind.YES_NO:
+                unknown = set(node.transitions) - {"yes", "no", "*"}
+                if unknown:
+                    issues.append(
+                        Issue(
+                            "error",
+                            "unknown_transition",
+                            f"Uebergaenge {sorted(unknown)} passen nicht zu einer Ja/Nein-Frage "
+                            "(erlaubt: yes, no, *)",
+                            node.id,
+                        )
+                    )
+                missing = {"yes", "no"} - set(node.transitions)
+                if missing and "*" not in node.transitions and not node.next:
+                    issues.append(
+                        Issue(
+                            "error",
+                            "unhandled_option",
+                            f"Antworten ohne Uebergang: {sorted(missing)}",
+                            node.id,
+                        )
+                    )
             elif not node.transitions and not node.next:
                 issues.append(
                     Issue("error", "missing_next", "ask-Knoten ohne 'next'/'transitions'", node.id)

@@ -1,0 +1,32 @@
+# Kleinster sinnvoller Baum -- zum Ausprobieren und als Vorlage fuer eigene Baeume.
+id: minimal_demo
+version: 1
+start: begruessung
+settings:
+  escalation_node: weiterleitung
+slots:
+  anliegen: { type: choice }
+nodes:
+  begruessung:
+    type: say
+    text: Guten Tag, hier ist der automatische Telefondienst.
+    next: frage
+  frage:
+    type: ask
+    text: Moechten Sie einen Termin vereinbaren? Sagen Sie ja oder nein.
+    reprompt: Bitte antworten Sie mit ja oder nein.
+    slot: anliegen
+    expect: yes_no
+    transitions:
+      yes: termin
+      no: verabschiedung
+  termin:
+    type: hangup
+    text: Das Sekretariat meldet sich bei Ihnen. Auf Wiederhoeren.
+  verabschiedung:
+    type: hangup
+    text: Alles klar, danke fuer Ihren Anruf.
+  weiterleitung:
+    type: transfer
+    text: Ich verbinde Sie.
+    target: "PJSIP/sekretariat"

@@ -1,0 +1,45 @@
+# Lokaler Gesamtaufbau: Telefonbot plus Asterisk.
+# Fuer den Anfang reicht "docker compose up telefonbot" mit dem Textsimulator;
+# Asterisk kommt dazu, sobald eine SIP-Anbindung steht.
+services:
+  telefonbot:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    container_name: telefonbot
+    restart: unless-stopped
+    environment:
+      # Geheimnisse hier oder in einer .env-Datei, nicht in der YAML-Konfiguration.
+      TELEFONBOT_LOG_LEVEL: INFO
+      TELEFONBOT_TELEPHONY_HOST: 0.0.0.0
+      TELEFONBOT_CONTROL_HOST: 0.0.0.0
+    volumes:
+      - ./config:/opt/telefonbot/config:ro
+      - ./models:/opt/telefonbot/models:ro
+      - telefonbot-var:/opt/telefonbot/var
+    ports:
+      - "127.0.0.1:8090:8090"   # AudioSocket -- nur lokal erreichbar
+      - "127.0.0.1:8091:8091"   # Control-API -- ohne Authentisierung!
+    # GPU-Betrieb: folgende Zeilen einkommentieren (nvidia-container-toolkit noetig)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  asterisk:
+    image: andrius/asterisk:20-current
+    container_name: telefonbot-asterisk
+    restart: unless-stopped
+    network_mode: host      # SIP und RTP vertragen sich schlecht mit NAT
+    volumes:
+      - ./deploy/asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./deploy/asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+    depends_on:
+      - telefonbot
+    profiles: ["telefonie"]   # startet nur mit: docker compose --profile telefonie up
+
+volumes:
+  telefonbot-var:

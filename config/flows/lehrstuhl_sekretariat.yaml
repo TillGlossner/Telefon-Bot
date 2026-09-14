@@ -1,0 +1,274 @@
+# Beispielbaum: Telefonannahme eines Lehrstuhl-Sekretariats.
+#
+# Gedacht als Vorlage, nicht als fertiger Produktivbaum -- Ansagen, Nebenstellen
+# und Oeffnungszeiten muessen an den eigenen Lehrstuhl angepasst werden.
+#
+# Grundsaetze, die in diesem Baum stecken:
+#   1. Der Anrufer erfaehrt im ersten Satz, dass er mit einem Automaten spricht.
+#   2. "Mitarbeiter" oder die Null fuehren jederzeit zu einem Menschen.
+#   3. Nach zwei Missverstaendnissen wird weitergeleitet statt weitergefragt.
+id: lehrstuhl_sekretariat
+version: 1
+locale: de-DE
+description: Anliegen aufnehmen, Termine notieren, sonst an das Sekretariat weiterleiten
+start: begruessung
+
+settings:
+  max_attempts: 2
+  timeout_s: 6
+  barge_in: true
+  min_confidence: 0.45
+  escalation_node: weiterleitung
+
+slots:
+  anliegen: { type: choice, description: Hauptanliegen des Anrufs }
+  datum: { type: date, description: Wunschtag fuer den Termin }
+  uhrzeit: { type: time, description: Wunschzeit fuer den Termin }
+  name: { type: text, description: Name des Anrufers, sensitive: true }
+  rueckrufnummer: { type: digits, description: Rufnummer fuer den Rueckruf, sensitive: true }
+  matrikelnummer: { type: digits, description: Matrikelnummer, sensitive: true }
+  pruefungsanliegen: { type: choice, description: Art des Pruefungsanliegens }
+  dringend: { type: yes_no, description: Rueckruf noch heute noetig }
+  vorgangsnummer: { type: text, description: Nummer des angelegten Vorgangs }
+
+global_commands:
+  - name: mensch
+    phrases: ["mitarbeiter", "mitarbeiterin", "mensch", "echten menschen", "sekretariat", "jemanden sprechen"]
+    action: goto
+    target: weiterleitung
+    dtmf: "0"
+  - name: wiederholen
+    phrases: ["wiederholen", "nochmal", "noch mal", "wie bitte", "nicht verstanden"]
+    action: repeat
+  - name: oeffnungszeiten
+    phrases: ["oeffnungszeiten", "sprechzeiten", "wann habt ihr auf", "wann ist geoeffnet"]
+    action: goto
+    target: oeffnungszeiten
+  - name: abbrechen
+    phrases: ["abbrechen", "auflegen", "hat sich erledigt", "danke das wars"]
+    action: goto
+    target: verabschiedung
+
+nodes:
+  begruessung:
+    type: say
+    text: >
+      Guten Tag, hier ist der automatische Telefondienst des Lehrstuhls.
+      Ich bin ein Sprachassistent und nehme Ihr Anliegen auf.
+      Sagen Sie jederzeit Mitarbeiter oder druecken Sie die Null,
+      um mit einer Person verbunden zu werden.
+    next: hauptmenue
+
+  hauptmenue:
+    type: ask
+    text: >
+      Moechten Sie einen Termin vereinbaren, einen Rueckruf erbitten
+      oder geht es um eine Pruefungsangelegenheit?
+    reprompt: >
+      Bitte sagen Sie Termin, Rueckruf oder Pruefung.
+      Sie koennen auch die Eins, Zwei oder Drei druecken.
+    no_input_text: >
+      Ich habe Sie nicht gehoert. Sagen Sie Termin, Rueckruf oder Pruefung.
+    slot: anliegen
+    expect:
+      type: choice
+      options:
+        termin: ["termin", "termine", "sprechstunde", "beratung", "besprechung", "treffen"]
+        rueckruf: ["rueckruf", "zurueckrufen", "anrufen", "rueckmeldung"]
+        pruefung: ["pruefung", "pruefungsamt", "klausur", "note", "noten", "pruefungsangelegenheit"]
+      dtmf:
+        "1": termin
+        "2": rueckruf
+        "3": pruefung
+    transitions:
+      termin: termin_datum
+      rueckruf: rueckruf_name
+      pruefung: pruefung_art
+
+  # --------------------------------------------------------------- Termin
+
+  termin_datum:
+    type: ask
+    text: An welchem Tag moechten Sie kommen?
+    reprompt: Bitte nennen Sie einen Tag, zum Beispiel morgen oder Dienstag, den vierzehnten.
+    slot: datum
+    expect: date
+    next: termin_uhrzeit
+
+  termin_uhrzeit:
+    type: ask
+    text: Um welche Uhrzeit passt es Ihnen?
+    reprompt: Bitte nennen Sie eine Uhrzeit, zum Beispiel vierzehn Uhr dreissig.
+    slot: uhrzeit
+    expect: time
+    next: termin_name
+
+  termin_name:
+    type: ask
+    text: Und wie ist Ihr Name?
+    reprompt: Bitte nennen Sie Ihren Vor- und Nachnamen.
+    slot: name
+    expect: text
+    next: termin_bestaetigen
+
+  termin_bestaetigen:
+    type: confirm
+    text: "Ich habe notiert: {name}, am {datum} um {uhrzeit} Uhr. Stimmt das so?"
+    reprompt: Bitte antworten Sie mit ja oder nein.
+    on_yes: termin_anlegen
+    on_no: termin_datum
+
+  termin_anlegen:
+    type: action
+    action: create_appointment
+    args:
+      art: termin
+      datum: "{datum}"
+      uhrzeit: "{uhrzeit}"
+      name: "{name}"
+    assign: vorgangsnummer
+    next: termin_ende
+    on_error: weiterleitung
+
+  termin_ende:
+    type: hangup
+    text: >
+      Ihr Terminwunsch ist unter der Nummer {vorgangsnummer} vermerkt.
+      Das Sekretariat bestaetigt Ihnen den Termin.
+      Vielen Dank fuer Ihren Anruf und auf Wiederhoeren.
+    reason: completed
+
+  # -------------------------------------------------------------- Rueckruf
+
+  rueckruf_name:
+    type: ask
+    text: Gerne notiere ich einen Rueckruf. Wie ist Ihr Name?
+    reprompt: Bitte nennen Sie Ihren Vor- und Nachnamen.
+    slot: name
+    expect: text
+    next: rueckruf_nummer
+
+  rueckruf_nummer:
+    type: ask
+    text: >
+      Unter welcher Rufnummer sind Sie erreichbar?
+      Sie koennen die Nummer auch ueber die Tastatur eingeben
+      und mit der Raute abschliessen.
+    reprompt: Bitte nennen Sie Ihre Rufnummer Ziffer fuer Ziffer.
+    slot: rueckrufnummer
+    expect: digits
+    next: rueckruf_dringend
+
+  rueckruf_dringend:
+    type: confirm
+    text: Ist Ihr Anliegen dringend, also noch heute?
+    slot: dringend
+    on_yes: weiterleitung
+    on_no: rueckruf_anlegen
+
+  rueckruf_anlegen:
+    type: action
+    action: create_ticket
+    args:
+      art: rueckruf
+      name: "{name}"
+      nummer: "{rueckrufnummer}"
+    assign: vorgangsnummer
+    next: rueckruf_ende
+    on_error: weiterleitung
+
+  rueckruf_ende:
+    type: hangup
+    text: >
+      Danke. Der Rueckruf ist unter der Nummer {vorgangsnummer} notiert,
+      das Sekretariat meldet sich bei Ihnen. Auf Wiederhoeren.
+    reason: completed
+
+  # -------------------------------------------------------------- Pruefung
+
+  pruefung_art:
+    type: ask
+    text: >
+      Geht es um eine Pruefungsanmeldung, um ein Attest
+      oder um eine Notenbescheinigung?
+    reprompt: Bitte sagen Sie Anmeldung, Attest oder Bescheinigung.
+    slot: pruefungsanliegen
+    expect:
+      type: choice
+      options:
+        anmeldung: ["anmeldung", "anmelden", "pruefungsanmeldung", "eintragen"]
+        attest: ["attest", "krank", "krankmeldung", "krankschreibung", "ruecktritt"]
+        bescheinigung: ["bescheinigung", "notenbescheinigung", "zeugnis", "noten", "schein"]
+      dtmf:
+        "1": anmeldung
+        "2": attest
+        "3": bescheinigung
+    transitions:
+      anmeldung: pruefung_matrikel
+      attest: pruefung_attest_hinweis
+      bescheinigung: pruefung_matrikel
+
+  pruefung_attest_hinweis:
+    type: say
+    text: >
+      Ein Attest muss im Original im Pruefungsamt eingehen.
+      Ich nehme Ihre Daten auf und leite den Vorgang weiter.
+    next: pruefung_matrikel
+
+  pruefung_matrikel:
+    type: ask
+    text: Bitte nennen Sie Ihre achtstellige Matrikelnummer.
+    reprompt: >
+      Bitte nennen Sie die acht Ziffern Ihrer Matrikelnummer
+      oder geben Sie sie ueber die Tastatur ein.
+    slot: matrikelnummer
+    expect:
+      type: digits
+      length: 8
+    next: pruefung_name
+
+  pruefung_name:
+    type: ask
+    text: Und wie ist Ihr Name?
+    slot: name
+    expect: text
+    next: pruefung_anlegen
+
+  pruefung_anlegen:
+    type: action
+    action: create_ticket
+    args:
+      art: pruefung
+      unterart: "{pruefungsanliegen}"
+      matrikelnummer: "{matrikelnummer}"
+      name: "{name}"
+    assign: vorgangsnummer
+    next: pruefung_ende
+    on_error: weiterleitung
+
+  pruefung_ende:
+    type: hangup
+    text: >
+      Ihr Anliegen ist unter der Nummer {vorgangsnummer} aufgenommen.
+      Das Pruefungssekretariat bearbeitet es und meldet sich bei Rueckfragen.
+      Auf Wiederhoeren.
+    reason: completed
+
+  # ------------------------------------------------------------- Allgemein
+
+  oeffnungszeiten:
+    type: say
+    text: >
+      Das Sekretariat ist montags bis donnerstags von neun bis zwoelf Uhr
+      und von vierzehn bis sechzehn Uhr besetzt, freitags von neun bis zwoelf Uhr.
+    next: hauptmenue
+
+  weiterleitung:
+    type: transfer
+    text: Einen Moment bitte, ich verbinde Sie mit dem Sekretariat.
+    target: "PJSIP/sekretariat"
+
+  verabschiedung:
+    type: hangup
+    text: Vielen Dank fuer Ihren Anruf. Auf Wiederhoeren.
+    reason: caller_cancelled

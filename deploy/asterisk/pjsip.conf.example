@@ -1,0 +1,38 @@
+; Ausschnitt: SIP-Anbindung fuer den Bot-Betrieb.
+; Die konkreten Werte kommt vom Telefonie-Team der LMU (IT-Servicedesk).
+
+[transport-udp]
+type=transport
+protocol=udp
+bind=0.0.0.0:5060
+
+; --- Amtsleitung / Nebenstellenanlage der Einrichtung -----------------------
+[uni-trunk]
+type=endpoint
+context=telefonbot          ; eingehende Anrufe landen beim Bot
+disallow=all
+allow=alaw                  ; G.711 a-law ist in Deutschland ueblich
+direct_media=no             ; Audio muss ueber Asterisk laufen, sonst kein AudioSocket
+dtmf_mode=rfc4733
+aors=uni-trunk
+
+[uni-trunk]
+type=aor
+contact=sip:pbx.example.lmu.de:5060
+
+[uni-trunk]
+type=identify
+endpoint=uni-trunk
+match=pbx.example.lmu.de
+
+; --- Ziel fuer Weiterleitungen an Menschen ---------------------------------
+[sekretariat]
+type=endpoint
+context=von-nebenstellen
+disallow=all
+allow=alaw
+aors=sekretariat
+
+[sekretariat]
+type=aor
+contact=sip:sekretariat@10.0.0.20

@@ -1,0 +1,31 @@
+[Unit]
+Description=Telefonbot (Sprachdialog mit Entscheidungsbaum)
+Documentation=file:///opt/telefonbot/docs/04-deployment-lmu.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=telefonbot
+Group=telefonbot
+WorkingDirectory=/opt/telefonbot
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/telefonbot/telefonbot.env
+ExecStart=/opt/telefonbot/.venv/bin/telefonbot start -c /etc/telefonbot/config.yaml
+Restart=on-failure
+RestartSec=5
+
+# Absicherung: der Dienst braucht weder Netzwerkfreiheit noch Schreibrechte
+# ausserhalb seines Datenverzeichnisses.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/telefonbot
+StateDirectory=telefonbot
+IPAddressAllow=localhost
+IPAddressDeny=any
+MemoryMax=8G
+
+[Install]
+WantedBy=multi-user.target

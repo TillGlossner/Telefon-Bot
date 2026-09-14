@@ -1,5 +1,6 @@
 """Laden und statische Pruefung von Flows."""
 
+import textwrap
 import unittest
 
 import yaml
@@ -119,3 +120,47 @@ class ValidationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class YamlFallstrickTest(unittest.TestCase):
+    """YAML 1.1 liest ``yes``/``no`` als Wahrheitswerte -- der Loader faengt das ab."""
+
+    FLOW = textwrap.dedent(
+        """
+        id: janein
+        start: frage
+        nodes:
+          frage:
+            type: ask
+            text: Moechten Sie einen Termin?
+            slot: wunsch
+            expect: yes_no
+            transitions:
+              yes: ja_ende
+              no: nein_ende
+          ja_ende: { type: hangup, text: Gut. }
+          nein_ende: { type: hangup, text: Auch gut. }
+        """
+    )
+
+    def test_unquotierte_ja_nein_uebergaenge(self):
+        flow = load_flow(yaml.safe_load(self.FLOW))
+        self.assertEqual(set(flow.nodes["frage"].transitions), {"yes", "no"})
+
+    def test_optionen_mit_wahrheitswert_als_schluessel(self):
+        data = yaml.safe_load(self.FLOW)
+        data["nodes"]["frage"]["expect"] = {"type": "choice", "options": {True: ["ja"], False: ["nein"]}}
+        flow = load_flow(data)
+        self.assertEqual(set(flow.nodes["frage"].expect.options), {"yes", "no"})
+
+    def test_falscher_uebergang_an_ja_nein_frage_wird_gemeldet(self):
+        data = yaml.safe_load(self.FLOW)
+        data["nodes"]["frage"]["transitions"] = {"vielleicht": "ja_ende", "no": "nein_ende"}
+        codes = {i.code for i in validate_flow(load_flow(data, strict=False)) if i.severity == "error"}
+        self.assertIn("unknown_transition", codes)
+
+    def test_fehlender_zweig_an_ja_nein_frage_wird_gemeldet(self):
+        data = yaml.safe_load(self.FLOW)
+        del data["nodes"]["frage"]["transitions"][False]  # YAML liest "no" als False
+        codes = {i.code for i in validate_flow(load_flow(data, strict=False)) if i.severity == "error"}
+        self.assertIn("unhandled_option", codes)
