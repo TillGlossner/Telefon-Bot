@@ -2,7 +2,7 @@
 
 ## Was automatisch getestet ist
 
-`make test` — 163 Tests, Laufzeit rund 12 Sekunden, ohne Installation von
+`make test` — 166 Tests, Laufzeit rund 12 Sekunden, ohne Installation von
 Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 
 | Bereich | Umfang |
@@ -21,6 +21,22 @@ Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 Die Gesprächstests laufen ohne Echtzeit: Der Fake-Transport taktet die
 Wiedergabe über Kontrollabgaben statt über die Uhr, und der Segmentierer zählt
 Blöcke statt Sekunden. Deshalb sind sie schnell und reproduzierbar.
+
+## Browser-Demo
+
+`demo/` bildet die Engine in JavaScript nach, damit der Baum ohne Installation
+durchspielbar ist. Damit beides nicht auseinanderläuft:
+
+* Der Baum wird von `scripts/demo_daten.py` aus derselben YAML exportiert, die
+  der Dienst lädt — er ist nicht abgetippt.
+* Aus den echten Python-Parsern werden 54 Eingabe-/Ergebnis-Paare erzeugt. Der
+  Reiter „Selbsttest“ der Demo lässt die Portierung über dieselben Fälle laufen
+  und zeigt jede Abweichung an.
+* Nach Änderungen an Bäumen oder Parsern: `make demo` ausführen, sonst zeigt die
+  Demo einen veralteten Stand.
+
+Nicht abgebildet ist alles Akustische: Erkennung, Synthese, Sprechpausen und
+Barge-in. Die Demo prüft den Dialog, nicht das Hören.
 
 ## Was **nicht** automatisch getestet ist
 

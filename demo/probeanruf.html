@@ -1,0 +1,828 @@
+<title>Telefonbot Probeanruf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+  :root {
+    --grund: #eaeef0;
+    --flaeche: #ffffff;
+    --flaeche-2: #f2f5f6;
+    --rand: #d3dbdf;
+    --rand-stark: #b6c3c9;
+    --tinte: #13202a;
+    --gedaempft: #5b6e7a;
+    --leitung: #0e6e7d;
+    --leitung-weich: #dceef0;
+    --signal: #a8600f;
+    --signal-weich: #f8ecd9;
+    --gut: #2c7a57;
+    --kritisch: #a33b33;
+    --schatten: 0 1px 2px rgba(19, 32, 42, .06), 0 8px 24px -16px rgba(19, 32, 42, .5);
+    --radius: 10px;
+    --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --text: "Source Sans 3", -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --grund: #0e1519;
+      --flaeche: #162026;
+      --flaeche-2: #1c2830;
+      --rand: #2a3a44;
+      --rand-stark: #3b4f5b;
+      --tinte: #e3ecf1;
+      --gedaempft: #93a7b3;
+      --leitung: #4fb9c7;
+      --leitung-weich: #12323a;
+      --signal: #e0a253;
+      --signal-weich: #3a2c15;
+      --gut: #63c294;
+      --kritisch: #e08078;
+      --schatten: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -18px rgba(0, 0, 0, .9);
+    }
+  }
+  :root[data-theme="dark"] {
+    --grund: #0e1519;
+    --flaeche: #162026;
+    --flaeche-2: #1c2830;
+    --rand: #2a3a44;
+    --rand-stark: #3b4f5b;
+    --tinte: #e3ecf1;
+    --gedaempft: #93a7b3;
+    --leitung: #4fb9c7;
+    --leitung-weich: #12323a;
+    --signal: #e0a253;
+    --signal-weich: #3a2c15;
+    --gut: #63c294;
+    --kritisch: #e08078;
+    --schatten: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -18px rgba(0, 0, 0, .9);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding-inline: 20px;
+    padding-block: 24px 40px;
+    background: var(--grund);
+    color: var(--tinte);
+    font-family: var(--text);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .huelle { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+  /* ------------------------------------------------------------- Kopfbereich */
+  .kopf { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .kopf h1 {
+    font-family: var(--display); font-weight: 700; font-size: clamp(1.45rem, 3.4vw, 1.9rem);
+    letter-spacing: -.02em; margin: 0; text-wrap: balance;
+  }
+  .kopf p { margin: 4px 0 0; color: var(--gedaempft); max-width: 62ch; font-size: .95rem; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 10px;
+    border-radius: 999px; border: 1px solid var(--rand-stark); background: var(--flaeche);
+    font-family: var(--mono); font-size: .78rem; letter-spacing: .01em; white-space: nowrap;
+  }
+  .status .punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--gedaempft); flex: none; }
+  .status[data-zustand="laeuft"] { border-color: var(--gut); color: var(--gut); }
+  .status[data-zustand="laeuft"] .punkt { background: var(--gut); animation: pulsieren 2s ease-in-out infinite; }
+  .status[data-zustand="verbunden"] { border-color: var(--leitung); color: var(--leitung); }
+  .status[data-zustand="verbunden"] .punkt { background: var(--leitung); }
+  .status[data-zustand="beendet"] { color: var(--gedaempft); }
+  @keyframes pulsieren { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .status .punkt { animation: none !important; } }
+
+  /* --------------------------------------------------------------- Bedienung */
+  .bedienung {
+    display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: flex-end;
+    padding: 14px 16px; background: var(--flaeche); border: 1px solid var(--rand);
+    border-radius: var(--radius); box-shadow: var(--schatten);
+  }
+  .feld { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .feld > label, .marke {
+    font-family: var(--mono); font-size: .68rem; text-transform: uppercase;
+    letter-spacing: .09em; color: var(--gedaempft);
+  }
+  select, input[type="text"] {
+    font-family: var(--text); font-size: .95rem; color: var(--tinte);
+    background: var(--flaeche-2); border: 1px solid var(--rand-stark);
+    border-radius: 7px; padding: 8px 10px; max-width: 100%;
+  }
+  .schalter { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--gedaempft); }
+  button {
+    font-family: var(--text); font-size: .93rem; font-weight: 600; color: var(--tinte);
+    background: var(--flaeche-2); border: 1px solid var(--rand-stark);
+    border-radius: 7px; padding: 8px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--leitung); }
+  button.haupt { background: var(--leitung); border-color: var(--leitung); color: #fff; }
+  :root[data-theme="dark"] button.haupt, :root:not([data-theme="light"]) button.haupt { color: #06171b; }
+  button:disabled { opacity: .45; cursor: not-allowed; border-color: var(--rand); }
+  :focus-visible { outline: 2px solid var(--leitung); outline-offset: 2px; }
+
+  /* ---------------------------------------------------------------- Konsole */
+  .konsole { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+  @media (max-width: 880px) { .konsole { grid-template-columns: minmax(0, 1fr); } }
+
+  .tafel {
+    background: var(--flaeche); border: 1px solid var(--rand);
+    border-radius: var(--radius); box-shadow: var(--schatten);
+  }
+  .tafel > h2 {
+    font-family: var(--mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--gedaempft); margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--rand);
+  }
+
+  #verlauf { padding: 16px; display: flex; flex-direction: column; gap: 14px; max-height: 50vh; overflow-y: auto; }
+  .zeile { display: flex; flex-direction: column; gap: 3px; max-width: 88%; }
+  .zeile.bot { border-left: 3px solid var(--leitung); padding-left: 12px; }
+  .zeile.bot.nachfrage { border-left-color: var(--signal); }
+  .zeile.anrufer { margin-left: auto; align-items: flex-end; }
+  .zeile.anrufer .inhalt {
+    background: var(--flaeche-2); border: 1px solid var(--rand);
+    border-radius: 10px 10px 2px 10px; padding: 8px 12px;
+  }
+  .zeile .inhalt { font-size: 1rem; }
+  .zeile .quelle { font-family: var(--mono); font-size: .68rem; color: var(--gedaempft); letter-spacing: .02em; }
+  .zeile.system {
+    max-width: 100%; font-family: var(--mono); font-size: .76rem; color: var(--gedaempft);
+    border-top: 1px dashed var(--rand); padding-top: 10px;
+  }
+  .zeile.system.warnung { color: var(--signal); }
+  .zeile.system.ende { color: var(--kritisch); }
+  .zeile.system.erfolg { color: var(--gut); }
+
+  .eingabe { border-top: 1px solid var(--rand); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .eingabe .reihe { display: flex; gap: 8px; }
+  .eingabe input[type="text"] { flex: 1; min-width: 0; }
+  .vorschlaege { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-family: var(--text); font-size: .84rem; font-weight: 400; padding: 4px 11px;
+    border-radius: 999px; border: 1px dashed var(--rand-stark); background: transparent; color: var(--gedaempft);
+  }
+  .chip:hover { color: var(--tinte); border-style: solid; }
+  .chip.global { border-color: var(--signal); color: var(--signal); }
+
+  /* --------------------------------------------------------------- Seitenteil */
+  .seitenteil { display: flex; flex-direction: column; gap: 18px; }
+  .block { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .paar { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; font-size: .9rem; }
+  .paar dt { font-family: var(--mono); font-size: .74rem; color: var(--gedaempft); }
+  .paar dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; word-break: break-word; }
+  dl { margin: 0; display: flex; flex-direction: column; gap: 7px; }
+  .leer { color: var(--gedaempft); font-style: italic; font-size: .88rem; }
+  .abzeichen {
+    font-family: var(--mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .06em;
+    border: 1px solid var(--rand-stark); border-radius: 4px; padding: 1px 5px; color: var(--gedaempft);
+    margin-left: 6px; white-space: nowrap;
+  }
+  .tasten { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tasten button { font-family: var(--mono); font-size: 1rem; padding: 9px 0; }
+  .pfad { display: flex; flex-wrap: wrap; gap: 4px; font-family: var(--mono); font-size: .7rem; }
+  .pfad span { color: var(--gedaempft); }
+  .pfad span.aktiv { color: var(--leitung); font-weight: 500; }
+
+  /* ------------------------------------------------------------------ Reiter */
+  .reiterleiste { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--rand); }
+  .reiterleiste button {
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    border-radius: 0; color: var(--gedaempft); padding: 9px 12px;
+  }
+  .reiterleiste button[aria-selected="true"] { color: var(--tinte); border-bottom-color: var(--leitung); }
+  .reiterinhalt { padding: 16px; }
+  .tabellenrahmen { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rand); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--gedaempft); font-weight: 500; white-space: nowrap;
+  }
+  td.knoten, td.wert { font-family: var(--mono); font-size: .8rem; white-space: nowrap; }
+  #reiter-baum th:nth-child(3), #reiter-baum td:nth-child(3) { min-width: 300px; }
+  #reiter-selbsttest td:nth-child(2) { min-width: 190px; }
+  tr.aktiv td { background: var(--leitung-weich); }
+  .typ {
+    font-family: var(--mono); font-size: .68rem; border: 1px solid var(--rand-stark);
+    border-radius: 4px; padding: 1px 5px; color: var(--gedaempft);
+  }
+  .bestanden { color: var(--gut); }
+  .gescheitert { color: var(--kritisch); font-weight: 600; }
+  .zusammenfassung {
+    display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: baseline;
+    padding-bottom: 14px; font-family: var(--mono); font-size: .8rem;
+  }
+  .zusammenfassung strong { font-size: 1.5rem; font-family: var(--display); }
+
+  .hinweis {
+    border-left: 3px solid var(--signal); background: var(--signal-weich);
+    padding: 12px 14px; border-radius: 0 8px 8px 0; font-size: .9rem;
+  }
+  .fuss { color: var(--gedaempft); font-size: .84rem; max-width: 72ch; }
+  .fuss code, p code, li code { font-family: var(--mono); font-size: .85em; }
+  h3 { font-family: var(--display); font-size: 1rem; margin: 18px 0 6px; }
+  h3:first-child { margin-top: 0; }
+  .reiterinhalt p, .reiterinhalt li { max-width: 68ch; font-size: .93rem; }
+</style>
+
+<div class="huelle">
+  <header class="kopf">
+    <div>
+      <h1>Probeanruf beim Sekretariats-Telefonbot</h1>
+      <p>
+        Derselbe Entscheidungsbaum wie im Betrieb, hier im Browser durchspielbar.
+        Antworten tippen, Tasten drücken oder schweigen — und zusehen, wie der Baum entscheidet.
+      </p>
+    </div>
+    <div class="status" id="status" data-zustand="laeuft"><span class="punkt"></span><span id="statustext">Gespräch läuft</span></div>
+  </header>
+
+  <div class="bedienung">
+    <div class="feld">
+      <label for="flowwahl">Entscheidungsbaum</label>
+      <select id="flowwahl"></select>
+    </div>
+    <div class="feld">
+      <label for="zeitwahl">Anruf erfolgt</label>
+      <select id="zeitwahl">
+        <option value="2026-09-14T10:00">Montag, 10:00 — Sprechzeit</option>
+        <option value="2026-09-14T13:00">Montag, 13:00 — Mittagspause</option>
+        <option value="2026-09-14T19:30">Montag, 19:30 — Feierabend</option>
+        <option value="2026-09-20T11:00">Sonntag, 11:00 — Wochenende</option>
+      </select>
+    </div>
+    <label class="schalter"><input type="checkbox" id="vorlesen"> Ansagen vorlesen</label>
+    <button id="neustart" class="haupt" type="button">Neuer Anruf</button>
+  </div>
+
+  <div class="konsole">
+    <section class="tafel">
+      <h2>Gesprächsverlauf</h2>
+      <div id="verlauf" aria-live="polite"></div>
+      <div class="eingabe">
+        <div class="vorschlaege" id="vorschlaege"></div>
+        <div class="reihe">
+          <input type="text" id="antwort" placeholder="Antwort des Anrufers …" autocomplete="off">
+          <button id="senden" class="haupt" type="button">Sagen</button>
+        </div>
+        <div class="reihe">
+          <button id="schweigen" type="button">Schweigen</button>
+          <button id="auflegen" type="button">Auflegen</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="seitenteil">
+      <section class="tafel">
+        <h2>Zustand</h2>
+        <div class="block">
+          <dl>
+            <div class="paar"><dt>Knoten</dt><dd id="z-knoten">—</dd></div>
+            <div class="paar"><dt>Typ</dt><dd id="z-typ">—</dd></div>
+            <div class="paar"><dt>erwartet</dt><dd id="z-erwartet">—</dd></div>
+            <div class="paar"><dt>Versuch</dt><dd id="z-versuch">—</dd></div>
+            <div class="paar"><dt>Sprechzeit</dt><dd id="z-sprechzeit">—</dd></div>
+          </dl>
+          <div class="pfad" id="z-pfad"></div>
+        </div>
+      </section>
+
+      <section class="tafel">
+        <h2>Telefontastatur</h2>
+        <div class="block">
+          <div class="tasten" id="tasten"></div>
+        </div>
+      </section>
+
+      <section class="tafel">
+        <h2>Erfasste Daten</h2>
+        <div class="block"><dl id="slots"><span class="leer">noch nichts erfasst</span></dl></div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="tafel">
+    <div class="reiterleiste" role="tablist">
+      <button role="tab" aria-selected="true" data-reiter="baum" type="button">Entscheidungsbaum</button>
+      <button role="tab" aria-selected="false" data-reiter="selbsttest" type="button">Selbsttest</button>
+      <button role="tab" aria-selected="false" data-reiter="info" type="button">Was das hier ist</button>
+    </div>
+
+    <div class="reiterinhalt" id="reiter-baum" role="tabpanel">
+      <div class="tabellenrahmen">
+        <table>
+          <thead><tr><th>Knoten</th><th>Typ</th><th>Ansage</th><th>Übergänge</th></tr></thead>
+          <tbody id="baumtabelle"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="reiterinhalt" id="reiter-selbsttest" role="tabpanel" hidden>
+      <div class="zusammenfassung">
+        <span><strong id="st-bestanden">–</strong> von <span id="st-gesamt">–</span> Prüfvektoren stimmen mit Python überein</span>
+        <span id="st-bezug"></span>
+      </div>
+      <p class="fuss">
+        Diese Seite bildet die Python-Engine in JavaScript nach. Damit beides nicht auseinanderläuft,
+        erzeugt <code>scripts/demo_daten.py</code> aus den echten Parsern Eingabe-/Ergebnis-Paare.
+        Der Selbsttest lässt die Portierung über dieselben Fälle laufen.
+      </p>
+      <div class="tabellenrahmen">
+        <table>
+          <thead><tr><th>Art</th><th>Eingabe</th><th>Python</th><th>JavaScript</th><th></th></tr></thead>
+          <tbody id="testtabelle"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="reiterinhalt" id="reiter-info" role="tabpanel" hidden>
+      <h3>Was echt ist</h3>
+      <p>
+        Der Entscheidungsbaum stammt unverändert aus <code>config/flows/lehrstuhl_sekretariat.yaml</code> —
+        er wird beim Bauen dieser Seite aus der YAML exportiert, nicht abgetippt. Dialogsteuerung,
+        Nachfragen, Eskalation, globale Kommandos und das deutsche Sprachverstehen verhalten sich
+        wie im Python-Original; der Selbsttest weist das für die Parser nach.
+      </p>
+      <h3>Was hier fehlt</h3>
+      <p>
+        Alles Akustische. Im Betrieb hört der Bot über die Telefonanlage zu, erkennt mit
+        Whisper und antwortet mit Piper — beides lokal auf eigener Hardware. Hier tippen Sie
+        stattdessen, und „Ansagen vorlesen“ nutzt die Sprachausgabe Ihres Browsers.
+        Ebenfalls nicht abgebildet: Sprechpausen-Erkennung, Barge-in und die Frage, wie gut
+        Whisper 8-kHz-Telefonaudio versteht.
+      </p>
+      <h3>Wozu es taugt</h3>
+      <ul>
+        <li><strong>Ansagen abnehmen:</strong> Klingt das am Telefon richtig? Ist die Frage am Ende?</li>
+        <li><strong>Sackgassen finden:</strong> Antworten Sie absichtlich daneben — nach zwei Nachfragen
+          muss ein Mensch übernehmen.</li>
+        <li><strong>Sprechzeiten prüfen:</strong> Stellen Sie den Anruf auf Feierabend. Der Bot verbindet
+          dann nicht ins Leere, sondern nimmt einen Rückruf auf.</li>
+        <li><strong>Menüpunkte testen:</strong> Sagen Sie, was Anrufer wirklich sagen. Wird es verstanden,
+          fehlt ein Synonym im Baum.</li>
+      </ul>
+      <p class="fuss">
+        Notieren Sie, was schiefgeht — jede Formulierung, die der Bot nicht versteht, ist eine Zeile
+        mehr in der YAML.
+      </p>
+    </div>
+  </section>
+
+  <p class="fuss">
+    Anrufer-Eingaben bleiben in dieser Seite; es wird nichts gespeichert und nichts gesendet.
+    Als sensibel markierte Slots erscheinen im Protokoll maskiert — so wie im echten Transkript.
+  </p>
+</div>
+
+<script src="engine.js"></script>
+<script src="daten.js"></script>
+<script>
+(function () {
+  "use strict";
+  var T = window.Telefonbot, DATEN = window.TELEFONBOT_DATEN;
+
+  var SPRECHZEITEN = new T.Sprechzeiten({
+    montag: ["09:00-12:00", "14:00-16:00"], dienstag: ["09:00-12:00", "14:00-16:00"],
+    mittwoch: ["09:00-12:00", "14:00-16:00"], donnerstag: ["09:00-12:00", "14:00-16:00"],
+    freitag: ["09:00-12:00"]
+  }, []);
+
+  var TYP_TEXT = { say: "Ansage", ask: "Frage", confirm: "Rückfrage", branch: "Verzweigung",
+    action: "Aktion", transfer: "Weiterleitung", hangup: "Gesprächsende" };
+  var ERWARTET_TEXT = { yes_no: "ja / nein", choice: "Auswahl", number: "Zahl", digits: "Ziffern",
+    date: "Datum", time: "Uhrzeit", text: "freier Text" };
+
+  var el = function (id) { return document.getElementById(id); };
+  var engine = null, flowId = null, anrufzeit = null, beendet = false;
+
+  /* ---------------------------------------------------------------- Anruf */
+
+  function neuerAnruf() {
+    flowId = el("flowwahl").value;
+    anrufzeit = new Date(el("zeitwahl").value);
+    var flow = DATEN.flows[flowId];
+    engine = new T.FlowEngine(flow, new T.RuleInterpreter(anrufzeit), SPRECHZEITEN.kontext(anrufzeit));
+    beendet = false;
+    el("verlauf").innerHTML = "";
+    system("Anruf angenommen · " + zeitText(anrufzeit) + " · Baum „" + flow.id + "“ v" + flow.version);
+    baumTabelle();
+    verarbeite(engine.start());
+  }
+
+  function verarbeite(zug) {
+    (zug.ansagen || []).forEach(function (ansage) {
+      ansageZeigen(ansage);
+    });
+    if (zug.kommando) system("Globales Kommando erkannt: " + zug.kommando);
+    if (zug.grund === "no_match") system("nicht verstanden → Nachfrage " + versuchZahl(), "warnung");
+    if (zug.grund === "no_input") system("keine Antwort → Nachfrage " + versuchZahl(), "warnung");
+
+    var offen = zug.pending;
+    if (!offen) return zustand();
+
+    if (offen.art === "invoke") {
+      var nummer = "V-" + anrufzeit.getFullYear() + String(anrufzeit.getMonth() + 1).padStart(2, "0") +
+        String(anrufzeit.getDate()).padStart(2, "0") + "-" + Math.floor(1000 + Math.random() * 8999);
+      system("Fachaktion " + offen.action + "(" + JSON.stringify(offen.args) + ") → " + nummer, "erfolg");
+      return verarbeite(engine.submitActionResult(nummer));
+    }
+    if (offen.art === "transfer") {
+      system("Weiterleitung an " + offen.target, "erfolg");
+      abschluss("verbunden", "Mit Sekretariat verbunden");
+      return;
+    }
+    if (offen.art === "hangup") {
+      system("Gespräch beendet (" + offen.reason + ")", "ende");
+      abschluss("beendet", "Gespräch beendet");
+      return;
+    }
+    zustand();
+  }
+
+  function versuchZahl() {
+    var knoten = engine.currentNode;
+    var grenze = knoten && knoten.max_attempts != null
+      ? knoten.max_attempts : DATEN.flows[flowId].settings.max_attempts;
+    return (engine.attempts[knoten.id] || 1) + " von " + grenze;
+  }
+
+  function antworten(eingabe, anzeige) {
+    if (beendet || !engine.pending || engine.pending.art !== "collect") return;
+    zeile("anrufer", anzeige, null);
+    try {
+      verarbeite(engine.submit(eingabe));
+    } catch (fehler) {
+      system("Fehler in der Engine: " + fehler.message, "ende");
+      abschluss("beendet", "abgebrochen");
+    }
+  }
+
+  function abschluss(zustandName, text) {
+    beendet = true;
+    el("status").dataset.zustand = zustandName;
+    el("statustext").textContent = text;
+    zustand();
+  }
+
+  /* -------------------------------------------------------------- Ausgabe */
+
+  function ansageZeigen(ansage) {
+    if (!ansage.text) return;
+    zeile("bot" + (ansage.is_reprompt ? " nachfrage" : ""), ansage.text,
+      ansage.node_id + (ansage.is_reprompt ? " · Nachfrage" : ""));
+    sprich(ansage.text);
+  }
+
+  function zeile(klassen, text, quelle) {
+    var behaelter = document.createElement("div");
+    behaelter.className = "zeile " + klassen;
+    if (quelle) {
+      var q = document.createElement("span");
+      q.className = "quelle";
+      q.textContent = quelle;
+      behaelter.appendChild(q);
+    }
+    var inhalt = document.createElement("div");
+    inhalt.className = "inhalt";
+    inhalt.textContent = text;
+    behaelter.appendChild(inhalt);
+    el("verlauf").appendChild(behaelter);
+    el("verlauf").scrollTop = el("verlauf").scrollHeight;
+  }
+
+  function system(text, art) {
+    var behaelter = document.createElement("div");
+    behaelter.className = "zeile system" + (art ? " " + art : "");
+    behaelter.textContent = text;
+    el("verlauf").appendChild(behaelter);
+    el("verlauf").scrollTop = el("verlauf").scrollHeight;
+  }
+
+  function sprich(text) {
+    if (!el("vorlesen").checked || !window.speechSynthesis) return;
+    var ausgabe = new SpeechSynthesisUtterance(text);
+    ausgabe.lang = "de-DE";
+    ausgabe.rate = 1.05;
+    window.speechSynthesis.speak(ausgabe);
+  }
+
+  function zeitText(zeitpunkt) {
+    var tag = T.WOCHENTAG_NAMEN[(zeitpunkt.getDay() + 6) % 7];
+    return tag.charAt(0).toUpperCase() + tag.slice(1) + ", " +
+      String(zeitpunkt.getHours()).padStart(2, "0") + ":" +
+      String(zeitpunkt.getMinutes()).padStart(2, "0");
+  }
+
+  /* ------------------------------------------------------------- Zustand */
+
+  function zustand() {
+    var knoten = engine.currentNode || {};
+    var offen = engine.pending;
+    el("z-knoten").textContent = knoten.id || "—";
+    el("z-typ").textContent = TYP_TEXT[knoten.type] || "—";
+    el("z-erwartet").textContent = offen && offen.art === "collect"
+      ? (ERWARTET_TEXT[offen.expect.type] || offen.expect.type) +
+        (offen.expect.length ? " (" + offen.expect.length + ")" : "")
+      : "—";
+    el("z-versuch").textContent = offen && offen.art === "collect" ? String(offen.attempt) : "—";
+    el("z-sprechzeit").textContent = engine.meta.innerhalb_sprechzeit === "ja"
+      ? "besetzt" : "nicht besetzt";
+
+    slotsZeigen();
+    pfadZeigen();
+    vorschlaegeZeigen();
+    baumHervorheben();
+
+    var wartet = !!(offen && offen.art === "collect");
+    el("antwort").disabled = !wartet;
+    el("senden").disabled = !wartet;
+    el("schweigen").disabled = !wartet;
+    el("auflegen").disabled = beendet;
+    Array.prototype.forEach.call(el("tasten").children, function (taste) { taste.disabled = !wartet; });
+  }
+
+  function slotsZeigen() {
+    var ziel = el("slots"), slots = engine.slots, namen = Object.keys(slots);
+    ziel.innerHTML = "";
+    if (!namen.length) {
+      ziel.innerHTML = '<span class="leer">noch nichts erfasst</span>';
+      return;
+    }
+    var deklaration = DATEN.flows[flowId].slots || {};
+    namen.forEach(function (name) {
+      var sensibel = deklaration[name] && deklaration[name].sensitive;
+      var paar = document.createElement("div");
+      paar.className = "paar";
+      var dt = document.createElement("dt");
+      dt.textContent = name;
+      var dd = document.createElement("dd");
+      dd.textContent = String(slots[name]);
+      if (sensibel) {
+        var marke = document.createElement("span");
+        marke.className = "abzeichen";
+        marke.textContent = "maskiert";
+        marke.title = "Erscheint im Transkript als ***";
+        dd.appendChild(marke);
+      }
+      paar.appendChild(dt);
+      paar.appendChild(dd);
+      ziel.appendChild(paar);
+    });
+  }
+
+  function pfadZeigen() {
+    var ziel = el("z-pfad");
+    ziel.innerHTML = "";
+    engine.history.slice(-7).forEach(function (id, index, liste) {
+      var teil = document.createElement("span");
+      teil.className = index === liste.length - 1 ? "aktiv" : "";
+      teil.textContent = id + (index === liste.length - 1 ? "" : " ›");
+      ziel.appendChild(teil);
+    });
+  }
+
+  /* --------------------------------------------------------- Vorschläge */
+
+  function vorschlaegeZeigen() {
+    var ziel = el("vorschlaege");
+    ziel.innerHTML = "";
+    var offen = engine.pending;
+    if (!offen || offen.art !== "collect") return;
+
+    var vorschlaege = [];
+    var expect = offen.expect;
+    if (expect.type === "yes_no") {
+      vorschlaege = ["ja, genau", "nein, das stimmt nicht"];
+    } else if (expect.type === "choice") {
+      Object.keys(expect.options || {}).forEach(function (wert) {
+        vorschlaege.push((expect.options[wert] || [wert])[0]);
+      });
+      vorschlaege.push("ähm, weiß nicht");
+    } else if (expect.type === "date") {
+      vorschlaege = ["morgen", "nächsten Dienstag", "am 14. März"];
+    } else if (expect.type === "time") {
+      vorschlaege = ["halb elf", "14 Uhr 30", "viertel nach drei"];
+    } else if (expect.type === "digits") {
+      vorschlaege = expect.length
+        ? ["eins zwei drei vier fünf sechs sieben acht", "12345"]
+        : ["089 2180 1234"];
+    } else {
+      vorschlaege = ["Maria Huber", "Till Glossner"];
+    }
+
+    vorschlaege.forEach(function (text) { chip(ziel, grossAnfang(text), text, false); });
+    (DATEN.flows[flowId].global_commands || []).forEach(function (kommando) {
+      if (kommando.phrases && kommando.phrases.length) {
+        chip(ziel, grossAnfang(kommando.phrases[0]), kommando.phrases[0], true);
+      }
+    });
+  }
+
+  function grossAnfang(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function chip(ziel, beschriftung, text, global) {
+    var knopf = document.createElement("button");
+    knopf.type = "button";
+    knopf.className = "chip" + (global ? " global" : "");
+    knopf.textContent = beschriftung;
+    knopf.addEventListener("click", function () {
+      antworten({ text: text, confidence: 1 }, text);
+    });
+    ziel.appendChild(knopf);
+  }
+
+  /* ------------------------------------------------------------ Baumtabelle */
+
+  function baumTabelle() {
+    var flow = DATEN.flows[flowId], ziel = el("baumtabelle");
+    ziel.innerHTML = "";
+    Object.keys(flow.nodes).forEach(function (id) {
+      var knoten = flow.nodes[id];
+      var reihe = document.createElement("tr");
+      reihe.dataset.knoten = id;
+
+      var zelle = document.createElement("td");
+      zelle.className = "knoten";
+      zelle.textContent = id;
+      reihe.appendChild(zelle);
+
+      zelle = document.createElement("td");
+      var typ = document.createElement("span");
+      typ.className = "typ";
+      typ.textContent = knoten.type;
+      zelle.appendChild(typ);
+      reihe.appendChild(zelle);
+
+      zelle = document.createElement("td");
+      zelle.textContent = kuerzen(knoten.text || "—", 90);
+      reihe.appendChild(zelle);
+
+      zelle = document.createElement("td");
+      zelle.className = "wert";
+      zelle.textContent = uebergaenge(knoten).join("  ") || "—";
+      reihe.appendChild(zelle);
+
+      ziel.appendChild(reihe);
+    });
+  }
+
+  function uebergaenge(knoten) {
+    var liste = [];
+    Object.keys(knoten.transitions || {}).forEach(function (wert) {
+      liste.push(wert + " → " + knoten.transitions[wert]);
+    });
+    if (knoten.on_yes) liste.push("ja → " + knoten.on_yes);
+    if (knoten.on_no) liste.push("nein → " + knoten.on_no);
+    (knoten.cases || []).forEach(function (fall) {
+      var bedingung = (fall.when || []).map(function (b) {
+        return b.slot + " " + (b.op || "eq") + " " + b.value;
+      }).join(" und ");
+      liste.push((bedingung || "Fall") + " → " + fall.next);
+    });
+    if (knoten.next) liste.push((knoten.type === "branch" ? "sonst → " : "→ ") + knoten.next);
+    if (knoten.on_error) liste.push("Fehler → " + knoten.on_error);
+    if (knoten.target) liste.push("an " + knoten.target);
+    return liste;
+  }
+
+  function baumHervorheben() {
+    var aktiv = engine.currentNode ? engine.currentNode.id : null;
+    Array.prototype.forEach.call(el("baumtabelle").children, function (reihe) {
+      reihe.classList.toggle("aktiv", reihe.dataset.knoten === aktiv);
+    });
+  }
+
+  function kuerzen(text, grenze) {
+    text = text.replace(/\s+/g, " ").trim();
+    return text.length <= grenze ? text : text.slice(0, grenze - 1) + "…";
+  }
+
+  /* -------------------------------------------------------------- Selbsttest */
+
+  function selbsttest() {
+    var bezug = new Date(DATEN.bezugstag + "T00:00:00");
+    var nlu = new T.RuleInterpreter(bezug);
+    var auswahl = { type: "choice", options: DATEN.auswahl_optionen, fuzzy: true };
+    var ziel = el("testtabelle"), bestanden = 0;
+    ziel.innerHTML = "";
+
+    DATEN.vektoren.forEach(function (vektor) {
+      var ist = null;
+      switch (vektor.art) {
+        case "yes_no":
+          var jaNein = T.parseYesNo(vektor.text);
+          ist = jaNein === null ? null : (jaNein ? "yes" : "no");
+          break;
+        case "number": ist = T.parseNumber(vektor.text); break;
+        case "digits": ist = T.parseDigits(vektor.text, vektor.laenge != null ? vektor.laenge : null); break;
+        case "date": ist = T.parseDate(vektor.text, bezug); break;
+        case "time": ist = T.parseTime(vektor.text); break;
+        case "choice": ist = nlu.interpret(auswahl, { text: vektor.text }).value; break;
+        case "normalize": ist = T.normalize(vektor.text); break;
+      }
+      var soll = vektor.erwartet === undefined ? null : vektor.erwartet;
+      var stimmt = JSON.stringify(ist === undefined ? null : ist) === JSON.stringify(soll);
+      if (stimmt) bestanden++;
+
+      var reihe = document.createElement("tr");
+      [vektor.art + (vektor.laenge ? " (" + vektor.laenge + ")" : ""),
+       vektor.text, darstellen(soll), darstellen(ist)].forEach(function (inhalt, spalte) {
+        var zelle = document.createElement("td");
+        if (spalte !== 1) zelle.className = "wert";
+        zelle.textContent = inhalt;
+        reihe.appendChild(zelle);
+      });
+      var urteil = document.createElement("td");
+      urteil.className = stimmt ? "bestanden" : "gescheitert";
+      urteil.textContent = stimmt ? "✓" : "✗";
+      reihe.appendChild(urteil);
+      ziel.appendChild(reihe);
+    });
+
+    el("st-bestanden").textContent = String(bestanden);
+    el("st-gesamt").textContent = String(DATEN.vektoren.length);
+    el("st-bezug").textContent = "Bezugstag der Datumsfälle: " + DATEN.bezugstag;
+  }
+
+  function darstellen(wert) {
+    if (wert === null || wert === undefined) return "nicht verstanden";
+    return String(wert);
+  }
+
+  /* --------------------------------------------------------------- Bedienung */
+
+  function reiterWechsel(name) {
+    ["baum", "selbsttest", "info"].forEach(function (reiter) {
+      el("reiter-" + reiter).hidden = reiter !== name;
+    });
+    document.querySelectorAll(".reiterleiste button").forEach(function (knopf) {
+      knopf.setAttribute("aria-selected", String(knopf.dataset.reiter === name));
+    });
+  }
+
+  function senden() {
+    var text = el("antwort").value.trim();
+    if (!text) return;
+    el("antwort").value = "";
+    antworten({ text: text, confidence: 1 }, text);
+  }
+
+  function aufbauen() {
+    var wahl = el("flowwahl");
+    Object.keys(DATEN.flows).forEach(function (id) {
+      var flow = DATEN.flows[id];
+      var option = document.createElement("option");
+      option.value = id;
+      option.textContent = id.split("_").map(function (teil) {
+        return teil.charAt(0).toUpperCase() + teil.slice(1);
+      }).join(" ") + " · " + Object.keys(flow.nodes).length + " Knoten";
+      option.title = flow.description || "";
+      wahl.appendChild(option);
+    });
+
+    "123456789*0#".split("").forEach(function (taste) {
+      var knopf = document.createElement("button");
+      knopf.type = "button";
+      knopf.textContent = taste;
+      knopf.addEventListener("click", function () {
+        antworten({ dtmf: taste }, "Taste " + taste);
+      });
+      el("tasten").appendChild(knopf);
+    });
+
+    el("senden").addEventListener("click", senden);
+    el("antwort").addEventListener("keydown", function (ereignis) {
+      if (ereignis.key === "Enter") senden();
+    });
+    el("schweigen").addEventListener("click", function () {
+      antworten({ timedOut: true }, "… (schweigt)");
+    });
+    el("auflegen").addEventListener("click", function () {
+      if (beendet) return;
+      system("Anrufer hat aufgelegt", "ende");
+      abschluss("beendet", "Anrufer hat aufgelegt");
+    });
+    el("neustart").addEventListener("click", function () {
+      el("status").dataset.zustand = "laeuft";
+      el("statustext").textContent = "Gespräch läuft";
+      neuerAnruf();
+    });
+    [el("flowwahl"), el("zeitwahl")].forEach(function (feld) {
+      feld.addEventListener("change", function () {
+        el("status").dataset.zustand = "laeuft";
+        el("statustext").textContent = "Gespräch läuft";
+        neuerAnruf();
+      });
+    });
+    document.querySelectorAll(".reiterleiste button").forEach(function (knopf) {
+      knopf.addEventListener("click", function () { reiterWechsel(knopf.dataset.reiter); });
+    });
+
+    selbsttest();
+    neuerAnruf();
+  }
+
+  aufbauen();
+})();
+</script>

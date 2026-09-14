@@ -256,3 +256,32 @@ class BenchmarkHelperTest(unittest.TestCase):
 
     def test_leere_referenz(self):
         self.assertEqual(self._wer()("", "irgendwas"), 0.0)
+
+
+class DemoDatenTest(unittest.TestCase):
+    """Die Browser-Demo muss den aktuellen Baum zeigen, nicht einen alten."""
+
+    @staticmethod
+    def _modul():
+        import importlib.util
+
+        pfad = Path(__file__).resolve().parent.parent / "scripts" / "demo_daten.py"
+        spec = importlib.util.spec_from_file_location("demo_daten", pfad)
+        modul = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modul)
+        return modul
+
+    def test_demo_daten_sind_aktuell(self):
+        modul = self._modul()
+        vorhanden = modul.ZIEL.read_text(encoding="utf-8") if modul.ZIEL.exists() else ""
+        self.assertEqual(
+            vorhanden,
+            modul.inhalt(),
+            "demo/daten.js ist veraltet -- 'make demo' ausfuehren",
+        )
+
+    def test_vektoren_decken_alle_parser_ab(self):
+        arten = {v["art"] for v in self._modul().vektoren()}
+        self.assertEqual(
+            arten, {"yes_no", "number", "digits", "date", "time", "choice", "normalize"}
+        )

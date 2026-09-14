@@ -13,7 +13,7 @@ nodes:
     next: frage
   frage:
     type: ask
-    text: Moechten Sie einen Termin vereinbaren? Sagen Sie ja oder nein.
+    text: Möchten Sie einen Termin vereinbaren? Sagen Sie ja oder nein.
     reprompt: Bitte antworten Sie mit ja oder nein.
     slot: anliegen
     expect: yes_no
@@ -22,10 +22,10 @@ nodes:
       no: verabschiedung
   termin:
     type: hangup
-    text: Das Sekretariat meldet sich bei Ihnen. Auf Wiederhoeren.
+    text: Das Sekretariat meldet sich bei Ihnen. Auf Wiederhören.
   verabschiedung:
     type: hangup
-    text: Alles klar, danke fuer Ihren Anruf.
+    text: Alles klar, danke für Ihren Anruf.
   weiterleitung:
     type: transfer
     text: Ich verbinde Sie.

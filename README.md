@@ -12,6 +12,13 @@ Text das System.
 Anrufer ──SIP──> Asterisk ──AudioSocket──> Telefonbot ──> Vorgang / Weiterleitung
 ```
 
+## Im Browser anrufen
+
+Der Entscheidungsbaum lässt sich ohne Installation durchspielen — als Artefakt mit
+Telefontastatur, Sprechzeiten-Umschalter und Blick auf den Zustand der Engine.
+Die Seite liegt in [`demo/`](demo/); ihre Daten erzeugt `make demo` aus derselben
+YAML, die auch der Dienst lädt.
+
 ## Sofort ausprobieren
 
 Ohne Installation, ohne Modelle, ohne Telefonanlage — nur Python 3.11 und PyYAML:
@@ -19,7 +26,7 @@ Ohne Installation, ohne Modelle, ohne Telefonanlage — nur Python 3.11 und PyYA
 ```bash
 make pruefen     # Entscheidungsbäume statisch prüfen
 make spielen     # Dialog im Terminal führen
-make test        # 163 Tests, ca. 12 Sekunden
+make test        # 166 Tests, ca. 12 Sekunden
 make graph       # Mermaid-Diagramme der Bäume
 ```
 
@@ -71,8 +78,9 @@ src/telefonbot/
   session/      Gesprächsschleife, Fachaktionen, Transkript
   control/      Status, Kennzahlen, Weiterleitungsziel für den Dialplan
 config/flows/   Die Entscheidungsbäume
+demo/           Browser-Demo (JavaScript-Portierung der Engine, Daten aus der YAML)
 deploy/         Asterisk-Dialplan, systemd-Unit, Dockerfile
-tests/          163 Tests, reine Standardbibliothek
+tests/          166 Tests, reine Standardbibliothek
 ```
 
 Der Kern kommt ohne Fremdpakete aus (PyYAML nur zum Laden der Bäume). Die

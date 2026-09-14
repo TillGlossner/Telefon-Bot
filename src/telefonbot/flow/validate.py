@@ -7,10 +7,13 @@ tote Knoten, Uebergaenge auf nicht existierende Ziele, Platzhalter ohne Slot.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from telefonbot.flow.model import ExpectKind, Flow, NodeKind
 from telefonbot.flow.render import placeholders
+
+_KLAMMERN = re.compile(r"\{[^{}]*\}")
 
 
 KONTEXTVARIABLEN = {
@@ -204,16 +207,41 @@ def _check_placeholders(flow: Flow) -> list[Issue]:
     issues: list[Issue] = []
     for node in flow.nodes.values():
         used: set[str] = set()
-        for text in (node.text, node.reprompt, node.no_input_text, node.target):
+        texte = [node.text, node.reprompt, node.no_input_text, node.target]
+        texte += [v for v in node.args.values() if isinstance(v, str)]
+        for text in texte:
             used |= placeholders(text)
-        for value in node.args.values():
-            if isinstance(value, str):
-                used |= placeholders(value)
+            issues += _kaputte_klammern(text, node.id)
         if not flow.slots:
             continue
         for name in sorted(used - known):
             issues.append(
                 Issue("warning", "unknown_placeholder", f"Platzhalter '{{{name}}}' ist kein Slot", node.id)
+            )
+    return issues
+
+
+def _kaputte_klammern(text: str | None, node_id: str) -> list[Issue]:
+    """Geschweifte Klammern, die kein gueltiger Platzhalter sind.
+
+    Ein Platzhalter wie ``{naechste_sprechzeit}`` besteht aus ASCII-Buchstaben.
+    Steht dort ein Umlaut oder ein Leerzeichen, wird der Text stillschweigend
+    woertlich vorgelesen -- genau das soll hier auffallen.
+    """
+    if not text:
+        return []
+    gueltig = placeholders(text)
+    issues = []
+    for treffer in _KLAMMERN.findall(text):
+        name = treffer[1:-1]
+        if name not in gueltig:
+            issues.append(
+                Issue(
+                    "warning",
+                    "broken_placeholder",
+                    f"'{treffer}' ist kein gueltiger Platzhalter und wird woertlich vorgelesen",
+                    node_id,
+                )
             )
     return issues
 

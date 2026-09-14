@@ -164,3 +164,24 @@ class YamlFallstrickTest(unittest.TestCase):
         del data["nodes"]["frage"]["transitions"][False]  # YAML liest "no" als False
         codes = {i.code for i in validate_flow(load_flow(data, strict=False)) if i.severity == "error"}
         self.assertIn("unhandled_option", codes)
+
+
+class KaputtePlatzhalterTest(unittest.TestCase):
+    """Ein Platzhalter mit Umlaut wird sonst stillschweigend woertlich vorgelesen."""
+
+    def warnungen(self, text):
+        data = yaml.safe_load(DEMO_FLOW_YAML)
+        data["nodes"]["termin_fertig"]["text"] = text
+        flow = load_flow(data, strict=False)
+        return {i.code for i in validate_flow(flow) if i.severity == "warning"}
+
+    def test_umlaut_im_platzhalter(self):
+        # Der Name mit Umlaut ist kein gueltiger Platzhalter, der ohne schon.
+        self.assertIn("broken_placeholder", self.warnungen("Bis {nächste_sprechzeit}."))
+        self.assertNotIn("broken_placeholder", self.warnungen("Bis {naechste_sprechzeit}."))
+
+    def test_leerzeichen_im_platzhalter(self):
+        self.assertIn("broken_placeholder", self.warnungen("Am { datum } um zehn."))
+
+    def test_gueltiger_platzhalter_ohne_warnung(self):
+        self.assertNotIn("broken_placeholder", self.warnungen("Am {datum} um zehn."))
