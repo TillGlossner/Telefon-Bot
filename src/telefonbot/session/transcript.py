@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 log = logging.getLogger(__name__)
 
@@ -42,10 +42,18 @@ class Transcript:
     caller: str = ""
     events: list[TranscriptEvent] = field(default_factory=list)
     sensitive_slots: set[str] = field(default_factory=set)
+    listener: Callable[[TranscriptEvent], None] | None = None
+    """Wird bei jedem Ereignis aufgerufen -- fuer Live-Anzeigen (Sprachclient).
+    Fehler des Zuhoerers duerfen das Gespraech nicht beeintraechtigen."""
 
     def add(self, kind: str, text: str = "", *, node_id: str = "", **data: Any) -> TranscriptEvent:
         event = TranscriptEvent(at=_now(), kind=kind, text=text, node_id=node_id, data=data)
         self.events.append(event)
+        if self.listener is not None:
+            try:
+                self.listener(event)
+            except Exception:
+                log.exception("Transkript-Zuhoerer fehlgeschlagen")
         return event
 
     def dialogue(self) -> list[tuple[str, str]]:

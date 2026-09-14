@@ -26,6 +26,10 @@ telefonbot = "telefonbot.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Der Sprachclient wird vom Dienst selbst ausgeliefert und muss mitinstalliert werden.
+telefonbot = ["webclient/*.html", "webclient/*.js"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

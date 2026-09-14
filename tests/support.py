@@ -62,3 +62,130 @@ class ScriptedCaller:
                 return
             last = marker
             await asyncio.sleep(settle)
+
+
+class WebSocketTestClient:
+    """Minimaler WebSocket-Client fuer Tests -- spricht mit dem Sprachdienst.
+
+    Client-Rahmen muessen laut RFC maskiert sein; genau das prueft dieser
+    Client auf der Serverseite mit.
+    """
+
+    def __init__(self, reader, writer):
+        from telefonbot.net.websocket import FrameReader
+
+        self._reader = reader
+        self._writer = writer
+        self._frames = FrameReader()
+        self._offen: list = []
+
+    @classmethod
+    async def verbinde(cls, host: str, port: int, pfad: str = "/ws"):
+        import base64
+        import os
+
+        reader, writer = await asyncio.open_connection(host, port)
+        schluessel = base64.b64encode(os.urandom(16)).decode("ascii")
+        writer.write(
+            f"GET {pfad} HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\n"
+            f"Connection: Upgrade\r\nSec-WebSocket-Key: {schluessel}\r\n"
+            "Sec-WebSocket-Version: 13\r\n\r\n".encode("ascii")
+        )
+        await writer.drain()
+        kopf = await reader.readuntil(b"\r\n\r\n")
+        if b"101" not in kopf.split(b"\r\n")[0]:
+            raise AssertionError(f"Kein Upgrade: {kopf!r}")
+        return cls(reader, writer)
+
+    async def sende_bytes(self, daten: bytes) -> None:
+        from telefonbot.net.websocket import OpCode, encode_frame
+
+        self._writer.write(encode_frame(OpCode.BINAER, daten, mask=True))
+        await self._writer.drain()
+
+    async def sende_json(self, objekt) -> None:
+        import json
+
+        from telefonbot.net.websocket import OpCode, encode_frame
+
+        self._writer.write(
+            encode_frame(OpCode.TEXT, json.dumps(objekt).encode("utf-8"), mask=True)
+        )
+        await self._writer.drain()
+
+    async def empfange(self, timeout: float = 5.0):
+        """Naechste Nachricht (Text oder binaer); ``None`` bei Verbindungsende.
+
+        Steuerrahmen (Schliessen, Ping, Pong) sind keine Nutzdaten: ein
+        Schliessen-Rahmen beendet den Strom, alles andere wird uebersprungen.
+        """
+        from telefonbot.net.websocket import OpCode
+
+        while True:
+            while self._offen:
+                nachricht = self._offen.pop(0)
+                if nachricht.opcode is OpCode.SCHLIESSEN:
+                    return None
+                if nachricht.opcode in (OpCode.PING, OpCode.PONG):
+                    continue
+                return nachricht
+            daten = await asyncio.wait_for(self._reader.read(8192), timeout=timeout)
+            if not daten:
+                return None
+            self._offen.extend(self._frames.feed(daten))
+
+    async def empfange_json(self, typ: str | None = None, timeout: float = 5.0):
+        """Wartet auf ein Steuerereignis, optional auf einen bestimmten Typ."""
+        import json
+
+        ende = asyncio.get_running_loop().time() + timeout
+        while True:
+            rest = ende - asyncio.get_running_loop().time()
+            if rest <= 0:
+                raise asyncio.TimeoutError(f"Ereignis '{typ}' kam nicht")
+            nachricht = await self.empfange(timeout=rest)
+            if nachricht is None:
+                return None
+            if nachricht.is_binary:
+                continue
+            ereignis = json.loads(nachricht.text)
+            if typ is None or ereignis.get("typ") == typ:
+                return ereignis
+
+    async def sende_aeusserung(self, sample_rate: int = 8000) -> None:
+        """Spricht einen Beitrag: Ton, dann Stille, damit die VAD das Ende erkennt."""
+        from telefonbot.audio.pcm import samples_to_bytes
+
+        audio = utterance(sample_rate)
+        groesse = int(sample_rate * 0.02)
+        roh = samples_to_bytes(audio)
+        for start in range(0, len(roh), groesse * 2):
+            await self.sende_bytes(roh[start : start + groesse * 2])
+
+    async def warte_bis_ruhe(self, stille_s: float = 0.25, timeout: float = 10.0):
+        """Wartet, bis der Bot zu Ende gesprochen hat.
+
+        Ohne dieses Warten faellt jede Antwort als Barge-in in die laufende
+        Ansage -- fuer den geradlinigen Testfall unerwuenscht.
+        """
+        import json
+
+        gesammelt = []
+        ende = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < ende:
+            try:
+                nachricht = await self.empfange(timeout=stille_s)
+            except asyncio.TimeoutError:
+                return gesammelt
+            if nachricht is None:
+                return gesammelt
+            if not nachricht.is_binary:
+                gesammelt.append(json.loads(nachricht.text))
+        return gesammelt
+
+    async def schliesse(self) -> None:
+        self._writer.close()
+        try:
+            await self._writer.wait_closed()
+        except Exception:
+            pass

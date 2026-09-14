@@ -53,7 +53,9 @@ sind optionale Extras und werden erst beim ersten Gebrauch importiert.
 | `asr/` | Schnittstelle, faster-whisper-Adapter, Attrappe |
 | `tts/` | Schnittstelle, Piper-Adapter, Ansagen-Cache, Attrappe |
 | `audio/` | PCM (Resampling, WAV, Pegel), VAD und Turn-Taking |
-| `telephony/` | AudioSocket-Protokoll und -Server, Fake-Transport, Textsimulator |
+| `telephony/` | AudioSocket (Asterisk), Browser-Transport, Fake-Transport, Textsimulator |
+| `net/` | WebSocket und Dateiserver für den Sprachclient (Standardbibliothek) |
+| `webclient/` | Sprachclient im Browser: Mikrofonaufnahme, Wiedergabe, Anzeige |
 | `session/` | Gesprächsschleife, Fachaktionen, Transkript |
 | `control/` | Status, Kennzahlen, Weiterleitungsziel für den Dialplan |
 | `app.py` | Verdrahtung aus der Konfiguration |
@@ -86,6 +88,20 @@ Frage und Antwort. Zielwert: **unter 1,5 s**.
 Die ASR- und TTS-Werte sind **Erwartungswerte, keine Messungen** — sie hängen an
 GPU, Modellgröße und Auslastung. `scripts/benchmark_asr.py` misst sie auf der
 Zielmaschine.
+
+## Zwei Eingänge, ein Ablauf
+
+Dieselbe `CallSession` bedient beide Wege — nur der Transport unterscheidet sich:
+
+| Transport | Herkunft des Audios | Wofür |
+|---|---|---|
+| `AudioSocketTransport` | Asterisk, 8 kHz PCM über TCP | Der Betrieb am Telefon |
+| `BrowserTransport` | Mikrofon im Browser, 8 kHz PCM über WebSocket | Sprechprobe ohne Telefonanlage |
+| `FakeTransport` | vorbereitete Audioblöcke | Tests |
+
+Weil der Browserclient dasselbe Signalformat liefert wie die Telefonanlage,
+prüft eine Sprechprobe tatsächlich die Kette, die später am Telefon läuft —
+und nicht eine Nachbildung davon.
 
 ## Bewusste Einschränkungen
 

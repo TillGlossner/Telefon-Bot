@@ -222,6 +222,12 @@
   h3 { font-family: var(--display); font-size: 1rem; margin: 18px 0 6px; }
   h3:first-child { margin-top: 0; }
   .reiterinhalt p, .reiterinhalt li { max-width: 68ch; font-size: .93rem; }
+  .reiterinhalt pre {
+    font-family: var(--mono); font-size: .82rem; background: var(--flaeche-2);
+    border: 1px solid var(--rand); border-radius: 8px; padding: 12px 14px;
+    overflow-x: auto; max-width: 68ch;
+  }
+  .reiterinhalt pre code { font-size: inherit; }
 </style>
 
 <div class="huelle">
@@ -231,6 +237,7 @@
       <p>
         Derselbe Entscheidungsbaum wie im Betrieb, hier im Browser durchspielbar.
         Antworten tippen, Tasten drücken oder schweigen — und zusehen, wie der Baum entscheidet.
+        Zum Sprechen gibt es die Sprechprobe auf dem eigenen Rechner (Reiter „Was das hier ist“).
       </p>
     </div>
     <div class="status" id="status" data-zustand="laeuft"><span class="punkt"></span><span id="statustext">Gespräch läuft</span></div>
@@ -342,13 +349,24 @@
         Nachfragen, Eskalation, globale Kommandos und das deutsche Sprachverstehen verhalten sich
         wie im Python-Original; der Selbsttest weist das für die Parser nach.
       </p>
+      <h3>Zum Sprechen: die Sprechprobe</h3>
+      <p>
+        Diese Seite ist zum <em>Tippen</em> — sie prüft den Dialog, nicht das Hören.
+        Wer mit dem Bot <em>sprechen</em> will, startet die Sprechprobe auf dem eigenen
+        Rechner: Mikrofon im Browser, Audio an den lokalen Dienst, dort echtes Whisper,
+        echter Entscheidungsbaum, echtes Piper.
+      </p>
+      <pre><code>telefonbot sprechen -c config/config.yaml
+# dann http://127.0.0.1:8099 öffnen</code></pre>
+      <p>
+        Es geht dabei kein Audio ins Netz. Beschrieben in
+        <code>docs/07-sprachinterface.md</code>.
+      </p>
       <h3>Was hier fehlt</h3>
       <p>
-        Alles Akustische. Im Betrieb hört der Bot über die Telefonanlage zu, erkennt mit
-        Whisper und antwortet mit Piper — beides lokal auf eigener Hardware. Hier tippen Sie
-        stattdessen, und „Ansagen vorlesen“ nutzt die Sprachausgabe Ihres Browsers.
-        Ebenfalls nicht abgebildet: Sprechpausen-Erkennung, Barge-in und die Frage, wie gut
-        Whisper 8-kHz-Telefonaudio versteht.
+        Alles Akustische: Sprechpausen-Erkennung, Barge-in und die Frage, wie gut Whisper
+        8-kHz-Telefonaudio versteht. „Ansagen vorlesen“ nutzt die Stimme Ihres Browsers,
+        nicht die lokale Sprachausgabe.
       </p>
       <h3>Wozu es taugt</h3>
       <ul>

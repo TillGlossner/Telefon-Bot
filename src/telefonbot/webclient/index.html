@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telefonbot — Sprechprobe</title>
+<style>
+  :root {
+    --grund: #eaeef0; --flaeche: #fff; --flaeche-2: #f2f5f6; --rand: #d3dbdf;
+    --rand-stark: #b6c3c9; --tinte: #13202a; --gedaempft: #5b6e7a;
+    --leitung: #0e6e7d; --signal: #a8600f; --gut: #2c7a57; --kritisch: #a33b33;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --text: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --grund: #0e1519; --flaeche: #162026; --flaeche-2: #1c2830; --rand: #2a3a44;
+      --rand-stark: #3b4f5b; --tinte: #e3ecf1; --gedaempft: #93a7b3;
+      --leitung: #4fb9c7; --signal: #e0a253; --gut: #63c294; --kritisch: #e08078;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding-inline: 20px; padding-block: 26px 40px;
+    background: var(--grund); color: var(--tinte); font-family: var(--text); line-height: 1.5;
+  }
+  .huelle { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -.02em; }
+  .unterzeile { margin: 4px 0 0; color: var(--gedaempft); font-size: .95rem; max-width: 66ch; }
+  .kopf { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-end; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--rand-stark); background: var(--flaeche);
+    font-family: var(--mono); font-size: .78rem; white-space: nowrap;
+  }
+  .status .punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--gedaempft); }
+  .status[data-zustand="laeuft"] { border-color: var(--gut); color: var(--gut); }
+  .status[data-zustand="laeuft"] .punkt { background: var(--gut); }
+  .status[data-zustand="fehler"] { border-color: var(--kritisch); color: var(--kritisch); }
+  .status[data-zustand="fehler"] .punkt { background: var(--kritisch); }
+  .status[data-zustand="verbinde"] { border-color: var(--signal); color: var(--signal); }
+
+  .konsole { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .konsole { grid-template-columns: minmax(0, 1fr); } }
+  .tafel { background: var(--flaeche); border: 1px solid var(--rand); border-radius: 10px; }
+  .tafel > h2 {
+    font-family: var(--mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--gedaempft); margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--rand);
+  }
+  .block { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  #verlauf { padding: 16px; display: flex; flex-direction: column; gap: 13px; min-height: 260px; max-height: 52vh; overflow-y: auto; }
+  .zeile { max-width: 88%; display: flex; flex-direction: column; gap: 3px; }
+  .zeile.bot { border-left: 3px solid var(--leitung); padding-left: 12px; }
+  .zeile.anrufer { margin-left: auto; align-items: flex-end; }
+  .zeile.anrufer .inhalt { background: var(--flaeche-2); border: 1px solid var(--rand); border-radius: 10px 10px 2px 10px; padding: 7px 12px; }
+  .zeile.system { max-width: 100%; font-family: var(--mono); font-size: .76rem; color: var(--gedaempft); border-top: 1px dashed var(--rand); padding-top: 9px; }
+  .zeile.system.warnung { color: var(--signal); }
+  .zeile.system.erfolg { color: var(--gut); }
+  .quelle { font-family: var(--mono); font-size: .68rem; color: var(--gedaempft); }
+
+  .leiste { border-top: 1px solid var(--rand); padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  button {
+    font: inherit; font-weight: 600; font-size: .93rem; color: var(--tinte); background: var(--flaeche-2);
+    border: 1px solid var(--rand-stark); border-radius: 7px; padding: 9px 16px; cursor: pointer;
+  }
+  button.haupt { background: var(--leitung); border-color: var(--leitung); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--leitung); outline-offset: 2px; }
+  .pegelrahmen { flex: 1; min-width: 120px; height: 8px; background: var(--flaeche-2); border: 1px solid var(--rand); border-radius: 999px; overflow: hidden; }
+  #pegel { height: 100%; width: 0; background: var(--leitung); transition: width .08s linear; }
+  #sprecher { font-family: var(--mono); font-size: .76rem; color: var(--signal); min-width: 96px; }
+
+  dl { margin: 0; display: flex; flex-direction: column; gap: 7px; }
+  .paar { display: flex; justify-content: space-between; gap: 10px; font-size: .9rem; }
+  .paar dt { font-family: var(--mono); font-size: .73rem; color: var(--gedaempft); }
+  .paar dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; word-break: break-word; }
+  .leer { color: var(--gedaempft); font-style: italic; font-size: .88rem; }
+  .tasten { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tasten button { font-family: var(--mono); padding: 8px 0; }
+  .hinweis { border-left: 3px solid var(--leitung); padding: 10px 14px; background: var(--flaeche); border-radius: 0 8px 8px 0; font-size: .9rem; color: var(--gedaempft); }
+  .hinweis strong { color: var(--tinte); }
+</style>
+</head>
+<body>
+<div class="huelle">
+  <header class="kopf">
+    <div>
+      <h1>Sprechprobe</h1>
+      <p class="unterzeile">
+        Mit dem Telefonbot sprechen — dieselbe Spracherkennung, derselbe
+        Entscheidungsbaum und dieselbe Sprachausgabe wie am Telefon.
+        Alles läuft auf diesem Rechner.
+      </p>
+    </div>
+    <div class="status" id="status" data-zustand="bereit"><span class="punkt"></span><span id="statustext">Nicht verbunden</span></div>
+  </header>
+
+  <p class="hinweis">
+    <strong>Kopfhörer aufsetzen.</strong> Über Lautsprecher hört sich der Bot selbst
+    und hält die eigene Ansage für eine Antwort — genau wie eine Telefonanlage ohne
+    Echokompensation.
+  </p>
+
+  <div class="konsole">
+    <section class="tafel">
+      <h2>Gesprächsverlauf</h2>
+      <div id="verlauf" aria-live="polite">
+        <div class="zeile system">Auf „Anrufen“ drücken. Der Browser fragt dann nach dem Mikrofon.</div>
+      </div>
+      <div class="leiste">
+        <button id="verbinden" class="haupt" type="button">Anrufen</button>
+        <button id="auflegen" type="button" disabled>Auflegen</button>
+        <div class="pegelrahmen" title="Mikrofonpegel"><div id="pegel"></div></div>
+        <span id="sprecher"></span>
+      </div>
+    </section>
+
+    <aside style="display: flex; flex-direction: column; gap: 16px;">
+      <section class="tafel">
+        <h2>Zustand</h2>
+        <div class="block">
+          <dl>
+            <div class="paar"><dt>Baum</dt><dd id="flowname">—</dd></div>
+            <div class="paar"><dt>Knoten</dt><dd id="knoten">—</dd></div>
+            <div class="paar"><dt>Typ</dt><dd id="knotentyp">—</dd></div>
+            <div class="paar"><dt>Sekretariat</dt><dd id="sprechzeit">—</dd></div>
+            <div class="paar"><dt>Technik</dt><dd id="technik">—</dd></div>
+          </dl>
+        </div>
+      </section>
+      <section class="tafel">
+        <h2>Erfasste Daten</h2>
+        <div class="block"><dl id="slots"><span class="leer">noch nichts erfasst</span></dl></div>
+      </section>
+      <section class="tafel">
+        <h2>Telefontastatur</h2>
+        <div class="block"><div class="tasten" id="tasten"></div></div>
+      </section>
+    </aside>
+  </div>
+</div>
+<script src="client.js"></script>
+</body>
+</html>

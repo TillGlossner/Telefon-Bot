@@ -2,7 +2,7 @@
 
 ## Was automatisch getestet ist
 
-`make test` — 166 Tests, Laufzeit rund 12 Sekunden, ohne Installation von
+`make test` — 189 Tests, Laufzeit rund 40 Sekunden (davon 22 s der Browsertest), ohne Installation von
 Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 
 | Bereich | Umfang |
@@ -16,6 +16,8 @@ Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 | Telefonie | AudioSocket-Rahmen (auch byteweise zerstückelt), echter TCP-Durchlauf gegen den Server, Überlastabweisung |
 | Gespräch | ganze Telefonate gegen Fake-Telefonie: Sprache, Tasten, Barge-in, Schweigen, Auflegen, Aktionsfehler |
 | Sprechzeiten | offen/geschlossen inkl. Mittagspause und Feiertagen, nächste Öffnung, fehlerhafte Angaben; beide Pfade des Beispielbaums (verbinden vs. Rückruf aufnehmen) |
+| Sprachinterface | WebSocket-Rahmen (Maskierung, Fragmentierung, Längenformate, Steuerrahmen), Dateiauslieferung samt Pfadausbruch-Schutz, vollständige Gespräche über eine echte WebSocket-Verbindung: Sprache, Tasten, Barge-in, Auflegen, Maskierung sensibler Äußerungen |
+| Browser | Ein echter Chromium mit simuliertem Mikrofon führt ein vollständiges Gespräch: Aufnahme, AudioWorklet, Herunterrechnen auf 8 kHz, Segmentierung, Baum, Rückweg als Audio (wird ohne Chromium übersprungen) |
 | Werkzeuge | Konfiguration (YAML + Umgebung), Simulator, Diagramm, Control-API, CLI |
 
 Die Gesprächstests laufen ohne Echtzeit: Der Fake-Transport taktet die
@@ -45,6 +47,9 @@ Das ist der ehrliche Teil der Liste — hier braucht es Hardware:
 * **faster-whisper und Piper.** Die Adapter sind geschrieben, aber in dieser
   Umgebung nie gegen echte Modelle gelaufen (Pakete nicht installierbar). Der
   erste Lauf auf der Zielmaschine ist ein echter Test, kein Formalakt.
+  Alles um die Modelle herum — Aufnahme, Segmentierung, Aufruf, Rückweg — ist
+  dagegen im Browsertest durchlaufen; ausgetauscht sind nur Erkenner und
+  Sprachausgabe.
 * **Asterisk.** Der AudioSocket-Server ist gegen einen selbstgebauten Client
   getestet, nicht gegen Asterisk. Offen: ob DTMF-Rahmen kommen, ob die
   Weiterleitung über die Control-API im Dialplan sauber greift.

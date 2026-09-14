@@ -5,7 +5,7 @@ PYTHON ?= python3
 FLOWS  := config/flows
 export PYTHONPATH := src
 
-.PHONY: help test test-schnell pruefen graph spielen lint typen start format clean modelle demo
+.PHONY: help test test-schnell pruefen graph spielen lint typen start format clean modelle demo sprechen
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -27,6 +27,9 @@ graph:  ## Mermaid-Diagramme aller Baeume nach var/ schreiben
 
 spielen:  ## Dialog im Terminal durchspielen (FLOW=... waehlbar)
 	$(PYTHON) -m telefonbot.cli spielen $(or $(FLOW),$(FLOWS)/lehrstuhl_sekretariat.yaml)
+
+sprechen:  ## Mit dem Bot sprechen (Browser-Mikrofon, alles lokal)
+	$(PYTHON) -m telefonbot.cli sprechen -c config/config.yaml
 
 start:  ## Dienst starten
 	$(PYTHON) -m telefonbot.cli start -c config/config.yaml

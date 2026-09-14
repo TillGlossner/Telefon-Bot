@@ -31,7 +31,7 @@ from telefonbot.flow.engine import CallContext, FlowEngine, UserInput
 from telefonbot.flow.model import ExpectKind, Flow
 from telefonbot.nlu.rules import RuleInterpreter
 from telefonbot.session.actions import ActionContext, ActionError, ActionRegistry
-from telefonbot.session.transcript import Transcript, TranscriptWriter
+from telefonbot.session.transcript import REDACTED, Transcript, TranscriptWriter
 from telefonbot.telephony.base import AudioFrame, AudioTransport, CallEnded, DtmfDigit, InboundEvent
 from telefonbot.tts.base import TTS
 
@@ -270,7 +270,9 @@ class CallSession:
                 if event.digit == self.config.dtmf_terminator:
                     return UserInput(dtmf=digits)
                 digits += event.digit
-                self.transcript.add("dtmf", digits, node_id=collect.node_id)
+                self.transcript.add(
+                    "dtmf", self._maskiere(digits, collect.slot), node_id=collect.node_id
+                )
                 if not expects_digits or self._digits_complete(collect, digits):
                     return UserInput(dtmf=digits)
                 continue
@@ -308,12 +310,24 @@ class CallSession:
             return UserInput(text="", confidence=0.0)
         self.transcript.add(
             "user",
-            transcript.text,
+            self._maskiere(transcript.text, collect.slot),
             node_id=collect.node_id,
             konfidenz=transcript.confidence,
             dauer_s=round(transcript.duration_s, 2),
         )
         return UserInput(text=transcript.text, confidence=transcript.confidence)
+
+    def _maskiere(self, text: str, slot: str | None) -> str:
+        """Aeusserungen zu sensiblen Slots nicht im Klartext protokollieren.
+
+        Die Dialogsteuerung bekommt weiterhin den echten Text -- nur Protokoll
+        und Live-Anzeige sehen die Maskierung. Sonst stuende die vorgelesene
+        Matrikelnummer woertlich in der Protokolldatei, waehrend der Slot
+        daneben brav mit *** erscheint.
+        """
+        if slot and slot in self.transcript.sensitive_slots:
+            return REDACTED
+        return text
 
     # ------------------------------------------------------------------ Aktionen
 

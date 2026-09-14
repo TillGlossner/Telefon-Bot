@@ -7,6 +7,7 @@
     telefonbot graph config/flows/x.yaml       # Mermaid-Diagramm erzeugen
     telefonbot ansage "Guten Tag" -o test.wav  # Sprachausgabe pruefen
     telefonbot erkennen aufnahme.wav           # Spracherkennung pruefen
+    telefonbot sprechen -c config/config.yaml  # mit dem Bot sprechen (Browser)
     telefonbot start -c config/config.yaml     # Dienst starten
 """
 
@@ -66,6 +67,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("wav", type=Path)
     p.add_argument("-c", "--config", type=Path, default=Path("config/config.yaml"))
     p.set_defaults(func=cmd_erkennen)
+
+    p = sub.add_parser("sprechen", help="Mit dem Bot sprechen (Browser-Mikrofon, alles lokal)")
+    p.add_argument("-c", "--config", type=Path, default=Path("config/config.yaml"))
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8099)
+    p.set_defaults(func=cmd_sprechen)
 
     p = sub.add_parser("start", help="Dienst starten (AudioSocket + Control-API)")
     p.add_argument("-c", "--config", type=Path, default=Path("config/config.yaml"))
@@ -176,6 +183,18 @@ def cmd_erkennen(args) -> int:
     print(f"Text      : {transcript.text}")
     print(f"Konfidenz : {transcript.confidence:.2f}")
     print(f"Dauer     : {transcript.duration_s:.1f}s")
+    return 0
+
+
+def cmd_sprechen(args) -> int:
+    from telefonbot.voice import VoiceWebService
+
+    config = load_config(args.config)
+    dienst = VoiceWebService(config, host=args.host, port=args.port)
+    try:
+        asyncio.run(dienst.run())
+    except KeyboardInterrupt:
+        print("\nSprachdienst beendet")
     return 0
 
 
