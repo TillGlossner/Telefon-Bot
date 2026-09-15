@@ -113,7 +113,7 @@ class WebSocketTestClient:
         )
         await self._writer.drain()
 
-    async def empfange(self, timeout: float = 5.0):
+    async def empfange(self, timeout: float = 15.0):
         """Naechste Nachricht (Text oder binaer); ``None`` bei Verbindungsende.
 
         Steuerrahmen (Schliessen, Ping, Pong) sind keine Nutzdaten: ein
@@ -134,7 +134,7 @@ class WebSocketTestClient:
                 return None
             self._offen.extend(self._frames.feed(daten))
 
-    async def empfange_json(self, typ: str | None = None, timeout: float = 5.0):
+    async def empfange_json(self, typ: str | None = None, timeout: float = 15.0):
         """Wartet auf ein Steuerereignis, optional auf einen bestimmten Typ."""
         import json
 

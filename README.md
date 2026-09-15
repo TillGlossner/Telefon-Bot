@@ -39,7 +39,7 @@ Ohne Installation, ohne Modelle, ohne Telefonanlage — nur Python 3.11 und PyYA
 ```bash
 make pruefen     # Entscheidungsbäume statisch prüfen
 make spielen     # Dialog im Terminal führen
-make test        # 189 Tests, ca. 40 Sekunden
+make test        # 207 Tests, ca. 35 Sekunden
 make graph       # Mermaid-Diagramme der Bäume
 ```
 
@@ -93,10 +93,10 @@ src/telefonbot/
   webclient/    Sprachclient: Mikrofonaufnahme und Wiedergabe im Browser
   session/      Gesprächsschleife, Fachaktionen, Transkript
   control/      Status, Kennzahlen, Weiterleitungsziel für den Dialplan
-config/flows/   Die Entscheidungsbäume
+config/flows/   Die Entscheidungsbäume (klinik_sekretariat ist die Vorgabe)
 demo/           Browser-Demo (JavaScript-Portierung der Engine, Daten aus der YAML)
 deploy/         Asterisk-Dialplan, systemd-Unit, Dockerfile
-tests/          189 Tests, reine Standardbibliothek
+tests/          207 Tests, reine Standardbibliothek
 ```
 
 Der Kern kommt ohne Fremdpakete aus (PyYAML nur zum Laden der Bäume). Die
@@ -112,9 +112,15 @@ Logik (außerhalb der Sprechzeit wird ein Rückruf aufgenommen statt ins Leere
 verbunden); AudioSocket-Protokoll und -Server; Konfiguration, CLI, Simulator,
 Control-API; zwei Beispielbäume.
 
-**Ausgelegt auf:** Lehrstuhl-/Sekretariatsbetrieb, Asterisk als schlanker
-Vermittler an einer SIP-Nebenstelle der zentralen LMU-Anlage, Spracherkennung
-auf einer GPU-VM.
+**Ausgelegt auf:** Sekretariatsbetrieb — mitgeliefert sind ein Baum für ein
+**Klinik-Sekretariat** (Notfallweiche, ärztliche Anrufer werden durchgestellt,
+keine medizinische Abfrage, Terminabsagen abschließend erledigt) und einer für
+ein Lehrstuhl-Sekretariat. Dazu Asterisk als schlanker Vermittler an einer
+SIP-Nebenstelle der zentralen LMU-Anlage und Spracherkennung auf einer GPU-VM.
+
+Für den Klinikbetrieb gelten zusätzliche Regeln (Art. 9 DSGVO, § 203 StGB,
+Abgrenzung zum Medizinprodukt) — sie sind im Baum umgesetzt und in
+[Datenschutz](docs/05-datenschutz.md) begründet.
 
 **Geschrieben, aber nie gegen echte Modelle gelaufen:** die Adapter für
 faster-whisper und Piper (die Pakete waren in der Entwicklungsumgebung nicht

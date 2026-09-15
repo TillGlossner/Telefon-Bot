@@ -30,7 +30,9 @@ from telefonbot.tts.fake import FakeTTS
 from telefonbot.voice import VoiceWebService
 
 WURZEL = Path(__file__).resolve().parent.parent
-GESPRAECHSDAUER_S = 22
+HOECHSTDAUER_S = 60
+"""Obergrenze, falls der Browser gar nicht erst anruft -- im Normalfall ist das
+Gespraech nach gut 20 Sekunden durch und der Test wartet nicht laenger."""
 
 
 def finde_chromium() -> str | None:
@@ -106,7 +108,7 @@ class BrowserGespraechTest(unittest.IsolatedAsyncioTestCase):
                 stderr=subprocess.DEVNULL,
             )
             try:
-                await asyncio.sleep(GESPRAECHSDAUER_S)
+                await self._warte_auf_gespraechsende(dienst)
             finally:
                 browser.terminate()
                 try:
@@ -116,6 +118,7 @@ class BrowserGespraechTest(unittest.IsolatedAsyncioTestCase):
                 await dienst.server.stop()
 
             self.assertEqual(dienst.bot.stats.calls_total, 1, "Der Browser muss angerufen haben")
+            self.assertEqual(dienst.bot.stats.calls_active, 0, "Das Gespraech muss beendet sein")
             self.assertEqual(dict(dienst.bot.stats.reasons), {"completed": 1})
 
             zeilen = list((arbeit / "transkripte").glob("*.jsonl"))
@@ -133,6 +136,21 @@ class BrowserGespraechTest(unittest.IsolatedAsyncioTestCase):
                 ["hauptmenue", "termin_datum", "termin_uhrzeit", "termin_name", "termin_bestaetigen"],
                 "Jede erkannte Aeusserung muss am richtigen Knoten angekommen sein",
             )
+
+
+    @staticmethod
+    async def _warte_auf_gespraechsende(dienst, takt: float = 0.5) -> None:
+        """Wartet, bis ein Gespraech gefuehrt und beendet wurde.
+
+        Eine feste Wartezeit waere eine Wette auf die Maschinenlast -- unter
+        Last wird der Test dann sporadisch rot, ohne dass etwas kaputt ist.
+        """
+        ende = asyncio.get_running_loop().time() + HOECHSTDAUER_S
+        while asyncio.get_running_loop().time() < ende:
+            if dienst.bot.stats.outcomes and dienst.bot.stats.calls_active == 0:
+                await asyncio.sleep(0.5)   # letzte Schreibvorgaenge abwarten
+                return
+            await asyncio.sleep(takt)
 
 
 if __name__ == "__main__":

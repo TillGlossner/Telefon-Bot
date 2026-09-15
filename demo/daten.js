@@ -19,6 +19,402 @@ window.TELEFONBOT_DATEN = {
   "bezugstag": "2026-03-10",
   "erzeugt_aus": "config/flows/*.yaml",
   "flows": {
+    "klinik_sekretariat": {
+      "description": "Anliegen aufnehmen, ärztliche Anrufer durchstellen, Absagen erledigen",
+      "global_commands": [
+        {
+          "action": "goto",
+          "dtmf": null,
+          "name": "notfall",
+          "phrases": [
+            "notfall",
+            "notaufnahme",
+            "notarzt",
+            "herzinfarkt",
+            "schlaganfall",
+            "bekomme keine luft",
+            "keine luft",
+            "bewusstlos",
+            "reanimation",
+            "112"
+          ],
+          "target": "notfall_hinweis"
+        },
+        {
+          "action": "goto",
+          "dtmf": "0",
+          "name": "mensch",
+          "phrases": [
+            "mitarbeiter",
+            "mitarbeiterin",
+            "sekretariat",
+            "mensch",
+            "jemanden sprechen",
+            "echten menschen",
+            "persönlich sprechen"
+          ],
+          "target": "weiterleitung_pruefen"
+        },
+        {
+          "action": "repeat",
+          "dtmf": null,
+          "name": "wiederholen",
+          "phrases": [
+            "wiederholen",
+            "nochmal",
+            "noch mal",
+            "wie bitte",
+            "nicht verstanden"
+          ],
+          "target": null
+        },
+        {
+          "action": "goto",
+          "dtmf": null,
+          "name": "abbrechen",
+          "phrases": [
+            "abbrechen",
+            "auflegen",
+            "hat sich erledigt",
+            "danke das wars"
+          ],
+          "target": "verabschiedung"
+        }
+      ],
+      "id": "klinik_sekretariat",
+      "locale": "de-DE",
+      "nodes": {
+        "absage_anlegen": {
+          "action": "create_ticket",
+          "args": {
+            "art": "terminabsage",
+            "name": "{name}",
+            "termin": "{termindatum}"
+          },
+          "assign": "vorgangsnummer",
+          "next": "absage_ende",
+          "on_error": "weiterleitung_pruefen",
+          "type": "action"
+        },
+        "absage_bestaetigen": {
+          "on_no": "absage_name",
+          "on_yes": "absage_anlegen",
+          "reprompt": "Bitte antworten Sie mit ja oder nein.",
+          "text": "Ich sage den Termin am {termindatum} ab, auf den Namen {name}. Ist das richtig?",
+          "type": "confirm"
+        },
+        "absage_datum": {
+          "expect": {
+            "fuzzy": true,
+            "type": "date"
+          },
+          "next": "absage_bestaetigen",
+          "reprompt": "Bitte nennen Sie den Tag, zum Beispiel morgen oder Dienstag, den vierzehnten.",
+          "slot": "termindatum",
+          "text": "An welchem Tag war Ihr Termin?",
+          "type": "ask"
+        },
+        "absage_ende": {
+          "reason": "completed",
+          "text": "Die Absage ist vermerkt, Vorgangsnummer {vorgangsnummer}. Wenn Sie einen neuen Termin möchten, melden Sie sich gerne wieder. Auf Wiederhören.",
+          "type": "hangup"
+        },
+        "absage_name": {
+          "expect": {
+            "fuzzy": true,
+            "type": "text"
+          },
+          "next": "absage_datum",
+          "reprompt": "Bitte nennen Sie Ihren Vor- und Nachnamen.",
+          "slot": "name",
+          "text": "Gerne nehme ich die Absage auf. Wie ist Ihr Name?",
+          "type": "ask"
+        },
+        "aerztlich_ausserhalb": {
+          "next": "rueckruf_name",
+          "text": "Das Sekretariat ist derzeit nicht besetzt. In dringenden fachlichen Fällen erreichen Sie den diensthabenden Arzt rund um die Uhr über die Pforte der Klinik. Für alles andere notiere ich Ihnen einen Rückruf.",
+          "type": "say"
+        },
+        "aerztlich_durchstellen": {
+          "cases": [
+            {
+              "next": "aerztlich_ausserhalb",
+              "when": [
+                {
+                  "op": "eq",
+                  "slot": "innerhalb_sprechzeit",
+                  "value": "nein"
+                }
+              ]
+            }
+          ],
+          "next": "weiterleitung",
+          "type": "branch"
+        },
+        "anderes_hinweis": {
+          "next": "rueckruf_name",
+          "text": "Zu Befunden, Arztbriefen und Behandlungen darf ich telefonisch keine Auskunft geben. Ich notiere Ihr Anliegen und das Sekretariat meldet sich.",
+          "type": "say"
+        },
+        "begruessung": {
+          "next": "hinweis_assistent",
+          "text": "Guten Tag, hier ist der automatische Telefondienst des Klinik-Sekretariats. Bei einem medizinischen Notfall legen Sie bitte auf und wählen Sie die 1 1 2.",
+          "type": "say"
+        },
+        "hauptmenue": {
+          "expect": {
+            "dtmf": {
+              "1": "aerztlich",
+              "2": "termin",
+              "3": "anderes"
+            },
+            "fuzzy": true,
+            "options": {
+              "aerztlich": [
+                "ärztlich",
+                "arzt",
+                "ärztin",
+                "doktor",
+                "kollege",
+                "kollegin",
+                "zuweiser",
+                "zuweisung",
+                "einweisung",
+                "hausarzt",
+                "facharzt",
+                "praxis",
+                "ich bin arzt",
+                "ich bin ärztin"
+              ],
+              "anderes": [
+                "etwas anderes",
+                "anderes",
+                "sonstiges",
+                "befund",
+                "arztbrief",
+                "unterlagen",
+                "bescheinigung",
+                "auskunft"
+              ],
+              "termin": [
+                "termin",
+                "sprechstunde",
+                "vorstellung",
+                "untersuchung",
+                "terminvergabe",
+                "absagen",
+                "verschieben"
+              ]
+            },
+            "type": "choice"
+          },
+          "no_input_text": "Ich habe Sie nicht gehört. Sagen Sie ärztlich, Termin, oder etwas anderes.",
+          "reprompt": "Bitte sagen Sie: ärztlich, Termin, oder etwas anderes. Sie können auch die Eins, Zwei oder Drei drücken.",
+          "slot": "anliegen",
+          "text": "Rufen Sie als Ärztin oder Arzt an, geht es um einen Termin, oder um etwas anderes?",
+          "transitions": {
+            "aerztlich": "aerztlich_durchstellen",
+            "anderes": "anderes_hinweis",
+            "termin": "termin_art"
+          },
+          "type": "ask"
+        },
+        "hinweis_assistent": {
+          "next": "sprechzeit_pruefen",
+          "text": "Ich bin ein Sprachassistent und nehme Ihr Anliegen auf. Sagen Sie jederzeit Mitarbeiter oder drücken Sie die Null, um mit einer Person verbunden zu werden.",
+          "type": "say"
+        },
+        "hinweis_geschlossen": {
+          "next": "hauptmenue",
+          "text": "Das Sekretariat ist im Moment nicht besetzt, wieder erreichbar {naechste_sprechzeit}. Ich nehme Ihr Anliegen trotzdem auf.",
+          "type": "say"
+        },
+        "notfall_hinweis": {
+          "reason": "notfall",
+          "text": "Wenn es sich um einen medizinischen Notfall handelt, legen Sie bitte sofort auf und wählen Sie die 1 1 2. Bei dringenden Beschwerden wenden Sie sich an die Notaufnahme oder an den ärztlichen Bereitschaftsdienst unter der 1 1 6 1 1 7.",
+          "type": "hangup"
+        },
+        "rueckruf_anlegen": {
+          "action": "create_ticket",
+          "args": {
+            "anliegen": "{anliegen}",
+            "art": "rueckruf",
+            "name": "{name}",
+            "nummer": "{rueckrufnummer}"
+          },
+          "assign": "vorgangsnummer",
+          "next": "rueckruf_ende",
+          "on_error": "weiterleitung_pruefen",
+          "type": "action"
+        },
+        "rueckruf_bestaetigen": {
+          "on_no": "rueckruf_nummer",
+          "on_yes": "rueckruf_anlegen",
+          "reprompt": "Bitte antworten Sie mit ja oder nein.",
+          "text": "Ich habe die Nummer {rueckrufnummer} notiert. Stimmt das?",
+          "type": "confirm"
+        },
+        "rueckruf_ende": {
+          "reason": "completed",
+          "text": "Danke, der Rückruf ist unter der Nummer {vorgangsnummer} notiert. Das Sekretariat meldet sich bei Ihnen. Auf Wiederhören.",
+          "type": "hangup"
+        },
+        "rueckruf_name": {
+          "expect": {
+            "fuzzy": true,
+            "type": "text"
+          },
+          "next": "rueckruf_nummer",
+          "reprompt": "Bitte nennen Sie Ihren Vor- und Nachnamen.",
+          "slot": "name",
+          "text": "Wie ist Ihr Name?",
+          "type": "ask"
+        },
+        "rueckruf_nummer": {
+          "expect": {
+            "fuzzy": true,
+            "type": "digits"
+          },
+          "next": "rueckruf_bestaetigen",
+          "reprompt": "Bitte nennen Sie Ihre Rufnummer Ziffer für Ziffer.",
+          "slot": "rueckrufnummer",
+          "text": "Unter welcher Rufnummer sind Sie erreichbar? Sie können die Nummer auch über die Tastatur eingeben und mit der Raute abschließen.",
+          "type": "ask"
+        },
+        "sprechzeit_pruefen": {
+          "cases": [
+            {
+              "next": "hinweis_geschlossen",
+              "when": [
+                {
+                  "op": "eq",
+                  "slot": "innerhalb_sprechzeit",
+                  "value": "nein"
+                }
+              ]
+            }
+          ],
+          "next": "hauptmenue",
+          "type": "branch"
+        },
+        "termin_art": {
+          "expect": {
+            "dtmf": {
+              "1": "neu",
+              "2": "absage"
+            },
+            "fuzzy": true,
+            "options": {
+              "absage": [
+                "absage",
+                "absagen",
+                "abmelden",
+                "verschieben",
+                "verschiebung",
+                "kann nicht kommen",
+                "verhindert",
+                "nicht kommen"
+              ],
+              "neu": [
+                "neuer termin",
+                "neu",
+                "termin vereinbaren",
+                "erstvorstellung",
+                "vorstellung",
+                "anmelden",
+                "sprechstunde"
+              ]
+            },
+            "type": "choice"
+          },
+          "reprompt": "Bitte sagen Sie: neuer Termin, oder Absage.",
+          "slot": "terminart",
+          "text": "Geht es um einen neuen Termin oder um eine Absage?",
+          "transitions": {
+            "absage": "absage_name",
+            "neu": "termin_neu_hinweis"
+          },
+          "type": "ask"
+        },
+        "termin_neu_hinweis": {
+          "next": "rueckruf_name",
+          "text": "Termine vergibt das Sekretariat persönlich, damit die nötigen Unterlagen vorliegen. Ich notiere Ihnen einen Rückruf.",
+          "type": "say"
+        },
+        "verabschiedung": {
+          "reason": "caller_cancelled",
+          "text": "Vielen Dank für Ihren Anruf. Auf Wiederhören.",
+          "type": "hangup"
+        },
+        "weiterleitung": {
+          "target": "PJSIP/sekretariat@uni-pbx",
+          "text": "Einen Moment bitte, ich verbinde Sie mit dem Sekretariat.",
+          "type": "transfer"
+        },
+        "weiterleitung_nicht_moeglich": {
+          "next": "rueckruf_name",
+          "text": "Das Sekretariat ist gerade nicht besetzt, wieder erreichbar {naechste_sprechzeit}. Ich notiere Ihnen einen Rückruf.",
+          "type": "say"
+        },
+        "weiterleitung_pruefen": {
+          "cases": [
+            {
+              "next": "weiterleitung_nicht_moeglich",
+              "when": [
+                {
+                  "op": "eq",
+                  "slot": "innerhalb_sprechzeit",
+                  "value": "nein"
+                }
+              ]
+            }
+          ],
+          "next": "weiterleitung",
+          "type": "branch"
+        }
+      },
+      "settings": {
+        "barge_in": true,
+        "escalation_node": "weiterleitung_pruefen",
+        "max_attempts": 2,
+        "min_confidence": 0.5,
+        "timeout_s": 7.0
+      },
+      "slots": {
+        "anliegen": {
+          "description": "Grobe Anliegensart",
+          "sensitive": false,
+          "type": "choice"
+        },
+        "name": {
+          "description": "Name des Anrufers",
+          "sensitive": true,
+          "type": "text"
+        },
+        "rueckrufnummer": {
+          "description": "Rufnummer für den Rückruf",
+          "sensitive": true,
+          "type": "digits"
+        },
+        "terminart": {
+          "description": "Neuer Termin oder Absage",
+          "sensitive": false,
+          "type": "choice"
+        },
+        "termindatum": {
+          "description": "Betroffener Termin bei einer Absage",
+          "sensitive": true,
+          "type": "date"
+        },
+        "vorgangsnummer": {
+          "description": "Nummer des angelegten Vorgangs",
+          "sensitive": false,
+          "type": "text"
+        }
+      },
+      "start": "begruessung",
+      "version": 1
+    },
     "lehrstuhl_sekretariat": {
       "description": "Anliegen aufnehmen, Termine notieren, sonst an das Sekretariat weiterleiten",
       "global_commands": [

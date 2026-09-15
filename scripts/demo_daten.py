@@ -36,7 +36,7 @@ from telefonbot.flow.engine import UserInput  # noqa: E402
 ZIEL = WURZEL / "demo" / "daten.js"
 BEZUGSTAG = dt.date(2026, 3, 10)  # ein Dienstag -- feste Grundlage fuer Datumsvektoren
 
-FLOWS = ["lehrstuhl_sekretariat", "minimal_demo"]
+FLOWS = ["klinik_sekretariat", "lehrstuhl_sekretariat", "minimal_demo"]
 
 JA_NEIN = ["ja", "ja genau", "korrekt", "passt so", "nein", "nee", "das stimmt nicht",
            "nicht richtig", "auf keinen Fall nein", "Moment mal"]

@@ -2,7 +2,7 @@
 
 ## Was automatisch getestet ist
 
-`make test` — 189 Tests, Laufzeit rund 40 Sekunden (davon 22 s der Browsertest), ohne Installation von
+`make test` — 207 Tests, Laufzeit rund 35 Sekunden (davon 15 s der Browsertest), ohne Installation von
 Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 
 | Bereich | Umfang |
@@ -18,6 +18,7 @@ Fremdpaketen, ohne Modelle, ohne Telefonanlage.
 | Sprechzeiten | offen/geschlossen inkl. Mittagspause und Feiertagen, nächste Öffnung, fehlerhafte Angaben; beide Pfade des Beispielbaums (verbinden vs. Rückruf aufnehmen) |
 | Sprachinterface | WebSocket-Rahmen (Maskierung, Fragmentierung, Längenformate, Steuerrahmen), Dateiauslieferung samt Pfadausbruch-Schutz, vollständige Gespräche über eine echte WebSocket-Verbindung: Sprache, Tasten, Barge-in, Auflegen, Maskierung sensibler Äußerungen |
 | Browser | Ein echter Chromium mit simuliertem Mikrofon führt ein vollständiges Gespräch: Aufnahme, AudioWorklet, Herunterrechnen auf 8 kHz, Segmentierung, Baum, Rückweg als Audio (wird ohne Chromium übersprungen) |
+| Klinik-Baum | Die Zusagen, die im Klinikbetrieb nicht verhandelbar sind: Notfallbegriffe führen von jedem Knoten aus sofort hinaus und beenden das Gespräch statt zu verbinden; ärztliche Anrufer werden ohne Datenaufnahme durchgestellt; kein Knoten fragt nach Beschwerden; kein Freitext-Slot außer dem Namen; keine Terminbuchung |
 | Werkzeuge | Konfiguration (YAML + Umgebung), Simulator, Diagramm, Control-API, CLI |
 
 Die Gesprächstests laufen ohne Echtzeit: Der Fake-Transport taktet die

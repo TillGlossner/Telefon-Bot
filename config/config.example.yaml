@@ -3,7 +3,8 @@
 #   TELEFONBOT_ASR_MODEL=medium  ->  asr.model
 # Geheimnisse (Tokens) gehoeren in die Umgebung, nicht in diese Datei.
 
-flow: config/flows/lehrstuhl_sekretariat.yaml
+# Verfuegbare Baeume: klinik_sekretariat, lehrstuhl_sekretariat, minimal_demo
+flow: config/flows/klinik_sekretariat.yaml
 log_level: INFO
 
 telephony:
@@ -21,8 +22,9 @@ asr:
   beam_size: 5
   # Fachbegriffe verbessern die Erkennung von Eigennamen deutlich:
   initial_prompt: >
-    Matrikelnummer, Pruefungsamt, Sprechstunde, Lehrstuhl, Seminar,
-    Vorlesung, Klausur, Attest, Ludwig-Maximilians-Universitaet
+    Sekretariat, Sprechstunde, Ambulanz, Zuweisung, Einweisung, Ueberweisung,
+    Arztbrief, Befund, Station, Oberarzt, Chefarzt, Terminabsage,
+    Klinikum der Ludwig-Maximilians-Universitaet
   model_dir: models/whisper   # lokaler Modellordner (Rechner ohne Internetzugang)
 
 tts:
@@ -64,11 +66,11 @@ actions:
 # Leer lassen = durchgehend erreichbar.
 sprechzeiten:
   tage:
-    montag: ["09:00-12:00", "14:00-16:00"]
-    dienstag: ["09:00-12:00", "14:00-16:00"]
-    mittwoch: ["09:00-12:00", "14:00-16:00"]
-    donnerstag: ["09:00-12:00", "14:00-16:00"]
-    freitag: ["09:00-12:00"]
+    montag: ["08:00-12:00", "13:00-16:00"]
+    dienstag: ["08:00-12:00", "13:00-16:00"]
+    mittwoch: ["08:00-12:00"]
+    donnerstag: ["08:00-12:00", "13:00-16:00"]
+    freitag: ["08:00-12:00"]
   geschlossen_an:
     - "2026-12-24"
     - "2026-12-31"

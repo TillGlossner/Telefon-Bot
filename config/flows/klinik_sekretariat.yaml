@@ -1,0 +1,316 @@
+# Telefonannahme für ein Klinik-Sekretariat (Direktions- oder Chefarztsekretariat).
+#
+# Anrufer sind gemischt: Patientinnen und Patienten, Angehörige, zuweisende
+# Ärztinnen und Ärzte, Stationen, Verwaltung. Der Baum ist darauf ausgelegt,
+# dass Fehlverstehen nichts kostet.
+#
+# Feste Regeln, die hier eingebaut sind und nicht aufgeweicht werden sollten:
+#
+#   1. Der erste Satz nennt den Notfallweg. Wer 112 braucht, darf nicht in
+#      einem Menü landen.
+#   2. Keine Frage nach Beschwerden, Symptomen oder Dringlichkeit. Das wäre
+#      fachlich unverantwortlich -- und eine Software, die nach Symptomen
+#      einstuft, kann als Medizinprodukt nach MDR einzustufen sein.
+#   3. Ärztliche Anrufer werden sofort durchgestellt, ohne Datenaufnahme.
+#      Kollegen am Telefon warten zu lassen ist der teuerste Fehler.
+#   4. Keine Auskunft über Befunde, Arztbriefe oder darüber, ob jemand
+#      Patient ist -- auch nicht indirekt.
+#   5. Der Bot vereinbart keine Termine, er notiert Rückrufe. Abschließend
+#      erledigt wird nur die Terminabsage.
+#   6. Erfasst werden ausschließlich Name, Rufnummer und Terminbezug. Kein
+#      Freitext zum Anliegen, damit keine Gesundheitsdaten im Protokoll
+#      landen, die dort nicht hingehören.
+#
+# Anzupassen vor dem Einsatz: Klinikname, Nebenstellen, Pforten-Rufnummer,
+# Sprechzeiten in config.yaml.
+id: klinik_sekretariat
+version: 1
+locale: de-DE
+description: Anliegen aufnehmen, ärztliche Anrufer durchstellen, Absagen erledigen
+start: begruessung
+
+settings:
+  max_attempts: 2
+  timeout_s: 7          # etwas mehr Zeit als am Lehrstuhl: ältere Anrufer
+  barge_in: true
+  min_confidence: 0.5   # im Zweifel lieber nachfragen als raten
+  escalation_node: weiterleitung_pruefen
+
+slots:
+  anliegen: { type: choice, description: Grobe Anliegensart, kein Freitext }
+  terminart: { type: choice, description: Neuer Termin oder Absage }
+  name: { type: text, description: Name des Anrufers, sensitive: true }
+  rueckrufnummer: { type: digits, description: Rufnummer für den Rückruf, sensitive: true }
+  termindatum: { type: date, description: Betroffener Termin bei einer Absage, sensitive: true }
+  vorgangsnummer: { type: text, description: Nummer des angelegten Vorgangs }
+
+global_commands:
+  # Notfallbegriffe führen sofort aus dem Dialog heraus. Bewusst eng gefasst:
+  # "dringend" allein sagen auch Anrufer mit Verwaltungsanliegen.
+  - name: notfall
+    phrases: ["notfall", "notaufnahme", "notarzt", "herzinfarkt", "schlaganfall",
+              "bekomme keine luft", "keine luft", "bewusstlos", "reanimation", "112"]
+    action: goto
+    target: notfall_hinweis
+  - name: mensch
+    phrases: ["mitarbeiter", "mitarbeiterin", "sekretariat", "mensch", "jemanden sprechen",
+              "echten menschen", "persönlich sprechen"]
+    action: goto
+    target: weiterleitung_pruefen
+    dtmf: "0"
+  - name: wiederholen
+    phrases: ["wiederholen", "nochmal", "noch mal", "wie bitte", "nicht verstanden"]
+    action: repeat
+  - name: abbrechen
+    phrases: ["abbrechen", "auflegen", "hat sich erledigt", "danke das wars"]
+    action: goto
+    target: verabschiedung
+
+nodes:
+  # --------------------------------------------------------------- Einstieg
+
+  begruessung:
+    type: say
+    # Notfallweg vor allem anderen. Kurz halten -- lange Ansagen führen zum Auflegen.
+    text: >
+      Guten Tag, hier ist der automatische Telefondienst des Klinik-Sekretariats.
+      Bei einem medizinischen Notfall legen Sie bitte auf und wählen Sie
+      die 1 1 2.
+    next: hinweis_assistent
+
+  hinweis_assistent:
+    type: say
+    text: >
+      Ich bin ein Sprachassistent und nehme Ihr Anliegen auf.
+      Sagen Sie jederzeit Mitarbeiter oder drücken Sie die Null,
+      um mit einer Person verbunden zu werden.
+    next: sprechzeit_pruefen
+
+  sprechzeit_pruefen:
+    type: branch
+    cases:
+      - when: [{ slot: innerhalb_sprechzeit, op: eq, value: "nein" }]
+        next: hinweis_geschlossen
+    next: hauptmenue
+
+  hinweis_geschlossen:
+    type: say
+    text: >
+      Das Sekretariat ist im Moment nicht besetzt, wieder erreichbar
+      {naechste_sprechzeit}. Ich nehme Ihr Anliegen trotzdem auf.
+    next: hauptmenue
+
+  hauptmenue:
+    type: ask
+    text: >
+      Rufen Sie als Ärztin oder Arzt an, geht es um einen Termin,
+      oder um etwas anderes?
+    reprompt: >
+      Bitte sagen Sie: ärztlich, Termin, oder etwas anderes.
+      Sie können auch die Eins, Zwei oder Drei drücken.
+    no_input_text: >
+      Ich habe Sie nicht gehört. Sagen Sie ärztlich, Termin, oder etwas anderes.
+    slot: anliegen
+    expect:
+      type: choice
+      options:
+        aerztlich: ["ärztlich", "arzt", "ärztin", "doktor", "kollege", "kollegin",
+                    "zuweiser", "zuweisung", "einweisung", "hausarzt", "facharzt",
+                    "praxis", "ich bin arzt", "ich bin ärztin"]
+        termin: ["termin", "sprechstunde", "vorstellung", "untersuchung",
+                 "terminvergabe", "absagen", "verschieben"]
+        anderes: ["etwas anderes", "anderes", "sonstiges", "befund", "arztbrief",
+                  "unterlagen", "bescheinigung", "auskunft"]
+      dtmf:
+        "1": aerztlich
+        "2": termin
+        "3": anderes
+    transitions:
+      aerztlich: aerztlich_durchstellen
+      termin: termin_art
+      anderes: anderes_hinweis
+
+  # ------------------------------------------------- Ärztliche Anrufer zuerst
+
+  aerztlich_durchstellen:
+    type: branch
+    # Kollegen nicht abfragen, nicht notieren -- direkt zum Menschen.
+    cases:
+      - when: [{ slot: innerhalb_sprechzeit, op: eq, value: "nein" }]
+        next: aerztlich_ausserhalb
+    next: weiterleitung
+
+  aerztlich_ausserhalb:
+    type: say
+    # Nebenstelle der Pforte vor dem Einsatz eintragen -- fachlich dringende
+    # Anrufe dürfen nicht in einem Rückrufzettel enden.
+    text: >
+      Das Sekretariat ist derzeit nicht besetzt. In dringenden fachlichen
+      Fällen erreichen Sie den diensthabenden Arzt rund um die Uhr über die
+      Pforte der Klinik. Für alles andere notiere ich Ihnen einen Rückruf.
+    next: rueckruf_name
+
+  # -------------------------------------------------------------- Termine
+
+  termin_art:
+    type: ask
+    text: Geht es um einen neuen Termin oder um eine Absage?
+    reprompt: "Bitte sagen Sie: neuer Termin, oder Absage."
+    slot: terminart
+    expect:
+      type: choice
+      options:
+        neu: ["neuer termin", "neu", "termin vereinbaren", "erstvorstellung",
+              "vorstellung", "anmelden", "sprechstunde"]
+        absage: ["absage", "absagen", "abmelden", "verschieben", "verschiebung",
+                 "kann nicht kommen", "verhindert", "nicht kommen"]
+      dtmf:
+        "1": neu
+        "2": absage
+    transitions:
+      neu: termin_neu_hinweis
+      absage: absage_name
+
+  termin_neu_hinweis:
+    type: say
+    # Der Bot vergibt bewusst keine Termine: eine falsch verstandene
+    # Sprechstunde kostet einen Anfahrtsweg und einen freien Platz.
+    text: >
+      Termine vergibt das Sekretariat persönlich, damit die nötigen
+      Unterlagen vorliegen. Ich notiere Ihnen einen Rückruf.
+    next: rueckruf_name
+
+  # Absage: der eine Fall, den der Bot abschließend erledigt.
+  absage_name:
+    type: ask
+    text: Gerne nehme ich die Absage auf. Wie ist Ihr Name?
+    reprompt: Bitte nennen Sie Ihren Vor- und Nachnamen.
+    slot: name
+    expect: text
+    next: absage_datum
+
+  absage_datum:
+    type: ask
+    text: An welchem Tag war Ihr Termin?
+    reprompt: Bitte nennen Sie den Tag, zum Beispiel morgen oder Dienstag, den vierzehnten.
+    slot: termindatum
+    expect: date
+    next: absage_bestaetigen
+
+  absage_bestaetigen:
+    type: confirm
+    text: "Ich sage den Termin am {termindatum} ab, auf den Namen {name}. Ist das richtig?"
+    reprompt: Bitte antworten Sie mit ja oder nein.
+    on_yes: absage_anlegen
+    on_no: absage_name
+
+  absage_anlegen:
+    type: action
+    action: create_ticket
+    args:
+      art: terminabsage
+      name: "{name}"
+      termin: "{termindatum}"
+    assign: vorgangsnummer
+    next: absage_ende
+    on_error: weiterleitung_pruefen
+
+  absage_ende:
+    type: hangup
+    text: >
+      Die Absage ist vermerkt, Vorgangsnummer {vorgangsnummer}.
+      Wenn Sie einen neuen Termin möchten, melden Sie sich gerne wieder.
+      Auf Wiederhören.
+    reason: completed
+
+  # ------------------------------------------------------------- Sonstiges
+
+  anderes_hinweis:
+    type: say
+    # Keine Auskunft zu Befunden, Arztbriefen oder Behandlungsverhältnissen.
+    text: >
+      Zu Befunden, Arztbriefen und Behandlungen darf ich telefonisch keine
+      Auskunft geben. Ich notiere Ihr Anliegen und das Sekretariat meldet sich.
+    next: rueckruf_name
+
+  # --------------------------------------------------------------- Rückruf
+
+  rueckruf_name:
+    type: ask
+    text: Wie ist Ihr Name?
+    reprompt: Bitte nennen Sie Ihren Vor- und Nachnamen.
+    slot: name
+    expect: text
+    next: rueckruf_nummer
+
+  rueckruf_nummer:
+    type: ask
+    text: >
+      Unter welcher Rufnummer sind Sie erreichbar? Sie können die Nummer
+      auch über die Tastatur eingeben und mit der Raute abschließen.
+    reprompt: Bitte nennen Sie Ihre Rufnummer Ziffer für Ziffer.
+    slot: rueckrufnummer
+    expect: digits
+    next: rueckruf_bestaetigen
+
+  rueckruf_bestaetigen:
+    type: confirm
+    text: "Ich habe die Nummer {rueckrufnummer} notiert. Stimmt das?"
+    reprompt: Bitte antworten Sie mit ja oder nein.
+    on_yes: rueckruf_anlegen
+    on_no: rueckruf_nummer
+
+  rueckruf_anlegen:
+    type: action
+    action: create_ticket
+    args:
+      art: rueckruf
+      anliegen: "{anliegen}"
+      name: "{name}"
+      nummer: "{rueckrufnummer}"
+    assign: vorgangsnummer
+    next: rueckruf_ende
+    on_error: weiterleitung_pruefen
+
+  rueckruf_ende:
+    type: hangup
+    text: >
+      Danke, der Rückruf ist unter der Nummer {vorgangsnummer} notiert.
+      Das Sekretariat meldet sich bei Ihnen. Auf Wiederhören.
+    reason: completed
+
+  # -------------------------------------------------------------- Ausgänge
+
+  notfall_hinweis:
+    type: hangup
+    # Kein Menü, keine Rückfrage, keine Datenaufnahme.
+    text: >
+      Wenn es sich um einen medizinischen Notfall handelt, legen Sie bitte
+      sofort auf und wählen Sie die 1 1 2. Bei dringenden Beschwerden wenden
+      Sie sich an die Notaufnahme oder an den ärztlichen Bereitschaftsdienst
+      unter der 1 1 6 1 1 7.
+    reason: notfall
+
+  weiterleitung_pruefen:
+    type: branch
+    cases:
+      - when: [{ slot: innerhalb_sprechzeit, op: eq, value: "nein" }]
+        next: weiterleitung_nicht_moeglich
+    next: weiterleitung
+
+  weiterleitung:
+    type: transfer
+    text: Einen Moment bitte, ich verbinde Sie mit dem Sekretariat.
+    target: "PJSIP/sekretariat@uni-pbx"
+
+  weiterleitung_nicht_moeglich:
+    type: say
+    text: >
+      Das Sekretariat ist gerade nicht besetzt, wieder erreichbar
+      {naechste_sprechzeit}. Ich notiere Ihnen einen Rückruf.
+    next: rueckruf_name
+
+  verabschiedung:
+    type: hangup
+    text: Vielen Dank für Ihren Anruf. Auf Wiederhören.
+    reason: caller_cancelled
